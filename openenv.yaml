@@ -1,0 +1,69 @@
+name: email-triage-env
+version: "1.0.0"
+description: >
+  A realistic B2B SaaS email triage environment for training and evaluating
+  AI agents on priority classification, category tagging, intelligent routing,
+  sentiment detection, and follow-up prediction.
+
+author: openenv-hackathon
+license: Apache-2.0
+
+tasks:
+  - name: easy_triage
+    description: "5 clear-signal emails — unambiguous priority, category, routing"
+    difficulty: easy
+    max_steps: 5
+
+  - name: medium_triage
+    description: "5 emails with mixed signals, thread context, multi-part issues"
+    difficulty: medium
+    max_steps: 5
+
+  - name: hard_triage
+    description: "5 ambiguous emails with churn risk, legal implications, competing signals"
+    difficulty: hard
+    max_steps: 5
+
+observation_space:
+  type: object
+  fields:
+    email_id: string
+    subject: string
+    body: string
+    sender_email: string
+    sender_name: string
+    thread_length: integer
+    has_attachment: boolean
+    account_tier: "free | starter | pro | enterprise"
+    prior_tickets: integer
+    step_number: integer
+    total_emails: integer
+    feedback: string
+    score_breakdown: object
+
+action_space:
+  type: object
+  fields:
+    priority: "urgent | high | normal | low"
+    category: "billing | technical_support | feature_request | bug_report | account_management | sales_inquiry | general_inquiry | spam"
+    routing_target: "tier1_support | tier2_support | billing_team | sales_team | engineering | account_management | spam_filter | escalation"
+    sentiment: "positive | neutral | negative | very_negative"
+    requires_followup: boolean
+    summary: string
+    suggested_response_tone: "formal | friendly | empathetic | concise"
+    tags: "list of strings (0–5)"
+
+reward:
+  type: float
+  range: [0.0, 1.0]
+  description: >
+    Weighted combination: priority (0.25), category (0.25), routing (0.20),
+    sentiment (0.10), follow-up (0.10), tag overlap (0.10). Partial credit
+    for adjacent priority/sentiment errors.
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  health: GET /health
+  tasks: GET /tasks

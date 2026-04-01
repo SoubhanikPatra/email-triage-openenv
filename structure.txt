@@ -1,0 +1,21 @@
+email-triage-env/
+│
+├── email_triage_env/              # Core package
+│   ├── __init__.py
+│   ├── models.py                 # Pydantic models (Action, Observation, State)
+│   ├── email_data.py             # Synthetic B2B SaaS email dataset
+│   └── grader.py                 # Deterministic scoring logic
+│
+├── server/                       # Backend service (FastAPI)
+│   ├── __init__.py
+│   ├── app.py                    # FastAPI entrypoint
+│   └── environment.py            # Core environment logic (reset, step, state)
+│
+├── inference.py                  # Baseline agent / evaluation script
+├── README.md                     # Documentation
+│
+├── Dockerfile                    # Container setup
+├── requirements.txt              # Dependencies
+├── openenv.yaml                  # OpenEnv manifest/config
+│
+└── (optional test / output dirs if created during runs)
