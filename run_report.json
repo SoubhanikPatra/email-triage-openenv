@@ -1,0 +1,504 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "tasks": [
+    {
+      "task": "easy_triage",
+      "steps": 5,
+      "avg_reward": 0.667,
+      "min_reward": 0.483,
+      "max_reward": 0.85,
+      "success": true,
+      "rows": [
+        {
+          "step": 1,
+          "email_id": "e003",
+          "subject": "Would love to see dark mode!",
+          "account_tier": "free",
+          "action": {
+            "priority": "urgent",
+            "category": "account_management",
+            "routing_target": "account_management",
+            "sentiment": "very_negative",
+            "requires_followup": false,
+            "summary": "Customer requests immediate account deletion due to unsolicited emails.",
+            "suggested_response_tone": "empathetic",
+            "tags": [
+              "unsubscribe",
+              "account_deletion"
+            ]
+          },
+          "reward": 0.4833,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.0,
+            "category": 1.0,
+            "routing": 0.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.3333333333333333
+          },
+          "feedback": "Issues: Priority: predicted 'urgent' but gold is 'normal' (score 0.00); Routing: predicted 'account_management' but gold is 'tier1_support'; Tags: low overlap (Jaccard 0.33). Gold tags: ['unsubscribe', 'opt-out']"
+        },
+        {
+          "step": 2,
+          "email_id": "e002",
+          "subject": "Can't log in \u2014 password reset not working",
+          "account_tier": "starter",
+          "action": {
+            "priority": "normal",
+            "category": "feature_request",
+            "routing_target": "tier1_support",
+            "sentiment": "positive",
+            "requires_followup": false,
+            "summary": "Customer requests dark mode feature and inquires about its roadmap.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "feature_request",
+              "tier1_support"
+            ]
+          },
+          "reward": 0.775,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 1.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Priority: predicted 'normal' but gold is 'low' (score 0.50); Tags: low overlap (Jaccard 0.00). Gold tags: ['dark mode', 'feature', 'ui']"
+        },
+        {
+          "step": 3,
+          "email_id": "e001",
+          "subject": "Invoice #4821 \u2014 payment failed",
+          "account_tier": "pro",
+          "action": {
+            "priority": "high",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "negative",
+            "requires_followup": true,
+            "summary": "Customer is experiencing issues with password reset and it's affecting their team's work.",
+            "suggested_response_tone": "empathetic",
+            "tags": [
+              "password_reset",
+              "login_issue"
+            ]
+          },
+          "reward": 0.6,
+          "done": false,
+          "score_breakdown": {
+            "priority": 1.0,
+            "category": 1.0,
+            "routing": 0.0,
+            "sentiment": 1.0,
+            "followup": 0.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Routing: predicted 'tier2_support' but gold is 'tier1_support'; Follow-up: predicted True but gold is False; Tags: low overlap (Jaccard 0.00). Gold tags: ['login', 'password', 'reset', 'blocked']"
+        },
+        {
+          "step": 4,
+          "email_id": "e005",
+          "subject": "Interested in enterprise pricing",
+          "account_tier": "free",
+          "action": {
+            "priority": "high",
+            "category": "billing",
+            "routing_target": "tier1_support",
+            "sentiment": "neutral",
+            "requires_followup": false,
+            "summary": "Customer's payment failed for their pro subscription and needs a new payment link.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "billing",
+              "payment"
+            ]
+          },
+          "reward": 0.625,
+          "done": false,
+          "score_breakdown": {
+            "priority": 1.0,
+            "category": 1.0,
+            "routing": 0.0,
+            "sentiment": 1.0,
+            "followup": 0.0,
+            "tag_overlap": 0.25
+          },
+          "feedback": "Issues: Routing: predicted 'tier1_support' but gold is 'billing_team'; Follow-up: predicted False but gold is True; Tags: low overlap (Jaccard 0.25). Gold tags: ['invoice', 'payment', 'renewal']"
+        },
+        {
+          "step": 5,
+          "email_id": "",
+          "subject": "",
+          "account_tier": "free",
+          "action": {
+            "priority": "normal",
+            "category": "sales_inquiry",
+            "routing_target": "sales_team",
+            "sentiment": "positive",
+            "requires_followup": true,
+            "summary": "Enterprise pricing and SSO options inquiry from a 500-person company.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "enterprise",
+              "pricing",
+              "SSO"
+            ]
+          },
+          "reward": 0.85,
+          "done": true,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 1.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.75
+          },
+          "feedback": "Issues: Priority: predicted 'normal' but gold is 'high' (score 0.50)"
+        }
+      ]
+    },
+    {
+      "task": "medium_triage",
+      "steps": 5,
+      "avg_reward": 0.685,
+      "min_reward": 0.425,
+      "max_reward": 0.84,
+      "success": true,
+      "rows": [
+        {
+          "step": 1,
+          "email_id": "m001",
+          "subject": "Re: Re: Re: Ongoing sync issues",
+          "account_tier": "enterprise",
+          "action": {
+            "priority": "high",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "neutral",
+            "requires_followup": false,
+            "summary": "Customer on Pro plan is experiencing API rate limits on /reports/generate endpoint and needs assistance.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "api",
+              "rate_limits",
+              "pro_plan"
+            ]
+          },
+          "reward": 0.7917,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 1.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.16666666666666666
+          },
+          "feedback": "Issues: Priority: predicted 'high' but gold is 'normal' (score 0.50); Tags: low overlap (Jaccard 0.17). Gold tags: ['api', 'rate-limit', '429', 'integration']"
+        },
+        {
+          "step": 2,
+          "email_id": "m005",
+          "subject": "Request: SAML SSO configuration guide",
+          "account_tier": "enterprise",
+          "action": {
+            "priority": "high",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "very_negative",
+            "requires_followup": true,
+            "summary": "Enterprise customer experiencing ongoing sync issues, threatening to cancel service if not resolved by Friday.",
+            "suggested_response_tone": "empathetic",
+            "tags": [
+              "api",
+              "rate-limit",
+              "429",
+              "integration"
+            ]
+          },
+          "reward": 0.775,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 1.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Priority: predicted 'high' but gold is 'urgent' (score 0.50); Tags: low overlap (Jaccard 0.00). Gold tags: ['sync', 'data', 'enterprise', 'escalation', 'churn-risk']"
+        },
+        {
+          "step": 3,
+          "email_id": "m003",
+          "subject": "Billing question + upgrade inquiry",
+          "account_tier": "pro",
+          "action": {
+            "priority": "high",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "neutral",
+            "requires_followup": false,
+            "summary": "Enterprise customer needs SAML SSO configuration guide for Okta setup.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "enterprise",
+              "sso",
+              "okta"
+            ]
+          },
+          "reward": 0.84,
+          "done": false,
+          "score_breakdown": {
+            "priority": 1.0,
+            "category": 1.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 0.0,
+            "tag_overlap": 0.4
+          },
+          "feedback": "Issues: Follow-up: predicted False but gold is True; Tags: low overlap (Jaccard 0.40). Gold tags: ['sso', 'saml', 'okta', 'authentication']"
+        },
+        {
+          "step": 4,
+          "email_id": "m002",
+          "subject": "Weird behavior when exporting to PDF",
+          "account_tier": "pro",
+          "action": {
+            "priority": "normal",
+            "category": "billing",
+            "routing_target": "sales_team",
+            "sentiment": "neutral",
+            "requires_followup": true,
+            "summary": "Customer has a billing question regarding an incorrect charge and an upgrade inquiry for additional seats.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "billing",
+              "upgrade_inquiry"
+            ]
+          },
+          "reward": 0.595,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 1.0,
+            "routing": 0.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.2
+          },
+          "feedback": "Issues: Priority: predicted 'normal' but gold is 'high' (score 0.50); Routing: predicted 'sales_team' but gold is 'billing_team'; Tags: low overlap (Jaccard 0.20). Gold tags: ['billing', 'seats', 'upgrade', 'invoice']"
+        },
+        {
+          "step": 5,
+          "email_id": "",
+          "subject": "",
+          "account_tier": "free",
+          "action": {
+            "priority": "high",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "neutral",
+            "requires_followup": false,
+            "summary": "Customer experiencing truncated PDF export with reports over 50 rows.",
+            "suggested_response_tone": "formal",
+            "tags": [
+              "pdf_export",
+              "truncated_pages"
+            ]
+          },
+          "reward": 0.425,
+          "done": true,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 0.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 0.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Priority: predicted 'high' but gold is 'normal' (score 0.50); Category: predicted 'technical_support' but gold is 'bug_report'; Follow-up: predicted False but gold is True; Tags: low overlap (Jaccard 0.00). Gold tags: ['pdf', 'export', 'bug', 'report', 'truncated']"
+        }
+      ]
+    },
+    {
+      "task": "hard_triage",
+      "steps": 5,
+      "avg_reward": 0.606,
+      "min_reward": 0.45,
+      "max_reward": 0.85,
+      "success": true,
+      "rows": [
+        {
+          "step": 1,
+          "email_id": "h005",
+          "subject": "Integration with Salesforce \u2014 strange data",
+          "account_tier": "enterprise",
+          "action": {
+            "priority": "normal",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "positive",
+            "requires_followup": true,
+            "summary": "User reports potential bug with nightly batch jobs and requests feature enhancement for CSV export.",
+            "suggested_response_tone": "friendly",
+            "tags": [
+              "pro_account",
+              "feature_request",
+              "bug_report"
+            ]
+          },
+          "reward": 0.525,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 0.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Priority: predicted 'normal' but gold is 'high' (score 0.50); Category: predicted 'technical_support' but gold is 'bug_report'; Tags: low overlap (Jaccard 0.00). Gold tags: ['race-condition', 'batch', 'compliance', 'csv', 'upgrade']"
+        },
+        {
+          "step": 2,
+          "email_id": "h004",
+          "subject": "Re: Renewal \u2014 not happy",
+          "account_tier": "pro",
+          "action": {
+            "priority": "high",
+            "category": "bug_report",
+            "routing_target": "tier2_support",
+            "sentiment": "negative",
+            "requires_followup": true,
+            "summary": "Enterprise customer reports data duplication issue with Salesforce integration after v4.2 release, requests migration script or API guidance.",
+            "suggested_response_tone": "formal",
+            "tags": [
+              "data_duplication",
+              "salesforce_integration",
+              "bug_report",
+              "enterprise_customer"
+            ]
+          },
+          "reward": 0.85,
+          "done": false,
+          "score_breakdown": {
+            "priority": 1.0,
+            "category": 1.0,
+            "routing": 1.0,
+            "sentiment": 0.5,
+            "followup": 1.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Sentiment: predicted 'negative' but gold is 'neutral' (score 0.50); Tags: low overlap (Jaccard 0.00). Gold tags: ['salesforce', 'integration', 'duplicate', 'migration', 'renewal']"
+        },
+        {
+          "step": 3,
+          "email_id": "h003",
+          "subject": "Data export question",
+          "account_tier": "enterprise",
+          "action": {
+            "priority": "high",
+            "category": "account_management",
+            "routing_target": "escalation",
+            "sentiment": "very_negative",
+            "requires_followup": true,
+            "summary": "Customer is unhappy with auto-renewal price increase and recent outages, considering switching to competitor.",
+            "suggested_response_tone": "empathetic",
+            "tags": [
+              "renewal",
+              "price_increase",
+              "outage",
+              "churn_risk"
+            ]
+          },
+          "reward": 0.5536,
+          "done": false,
+          "score_breakdown": {
+            "priority": 0.5,
+            "category": 0.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.2857142857142857
+          },
+          "feedback": "Issues: Priority: predicted 'high' but gold is 'urgent' (score 0.50); Category: predicted 'account_management' but gold is 'billing'; Tags: low overlap (Jaccard 0.29). Gold tags: ['renewal', 'price-increase', 'churn-risk', 'refund', 'outage']"
+        },
+        {
+          "step": 4,
+          "email_id": "h002",
+          "subject": "Fwd: Fwd: Urgent \u2014 client demo tomorrow",
+          "account_tier": "enterprise",
+          "action": {
+            "priority": "urgent",
+            "category": "technical_support",
+            "routing_target": "tier2_support",
+            "sentiment": "neutral",
+            "requires_followup": true,
+            "summary": "Enterprise customer needs urgent assistance with exporting user activity logs via API for a legal audit.",
+            "suggested_response_tone": "formal",
+            "tags": [
+              "urgent",
+              "enterprise",
+              "api",
+              "data_export"
+            ]
+          },
+          "reward": 0.45,
+          "done": false,
+          "score_breakdown": {
+            "priority": 1.0,
+            "category": 0.0,
+            "routing": 0.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Category: predicted 'technical_support' but gold is 'account_management'; Routing: predicted 'tier2_support' but gold is 'escalation'; Tags: low overlap (Jaccard 0.00). Gold tags: ['data-export', 'legal', 'audit', 'compliance', 'confidential']"
+        },
+        {
+          "step": 5,
+          "email_id": "",
+          "subject": "",
+          "account_tier": "free",
+          "action": {
+            "priority": "urgent",
+            "category": "account_management",
+            "routing_target": "escalation",
+            "sentiment": "very_negative",
+            "requires_followup": true,
+            "summary": "Enterprise client at risk of losing $2M deal due to unresolved custom branding feature.",
+            "suggested_response_tone": "empathetic",
+            "tags": [
+              "data-export",
+              "legal",
+              "audit",
+              "compliance",
+              "confidential"
+            ]
+          },
+          "reward": 0.65,
+          "done": true,
+          "score_breakdown": {
+            "priority": 1.0,
+            "category": 0.0,
+            "routing": 1.0,
+            "sentiment": 1.0,
+            "followup": 1.0,
+            "tag_overlap": 0.0
+          },
+          "feedback": "Issues: Category: predicted 'account_management' but gold is 'bug_report'; Tags: low overlap (Jaccard 0.00). Gold tags: ['demo', 'branding', 'escalation', 'enterprise', 'revenue-risk']"
+        }
+      ]
+    }
+  ],
+  "overall": {
+    "total_emails": 15,
+    "overall_avg_reward": 0.653
+  }
+}

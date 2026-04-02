@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Email Triage Environment — Baseline Inference Script
 
@@ -21,6 +20,11 @@ Stdout format (mandatory)
 
 from __future__ import annotations
 
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
+
 import json
 import os
 import sys
@@ -28,7 +32,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 import requests
-from openai import OpenAI
+
 
 # ---------------------------------------------------------------------------
 # Config from environment variables
@@ -234,6 +238,8 @@ def run_task(task_name: str) -> None:
     try:
         reset_data = env_reset(task_name)
         session_id = reset_data["session_id"]
+        if not isinstance(session_id, str) or not session_id:
+            raise ValueError("Invalid session_id returned by /reset")
         obs = reset_data
 
         for step in range(1, MAX_STEPS_PER_TASK + 1):
