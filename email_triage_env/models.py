@@ -1,20 +1,15 @@
 """
 Email Triage Environment — Typed Models
-
 All data contracts between client and server live here.
 Action, Observation, State are Pydantic BaseModel subclasses.
 """
-
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
-
-
+from typing import Any, Dict, List, Optional, Literal
+from pydantic import BaseModel, Field, field_validator
 # ---------------------------------------------------------------------------
 # Shared enums (plain strings — no stdlib enum needed)
 # ---------------------------------------------------------------------------
-
-PRIORITY_LEVELS = ["urgent", "high", "normal", "low"]
-CATEGORIES = [
+PRIORITY_LITERAL = Literal["urgent", "high", "normal", "low"]
+CATEGORY_LITERAL = Literal[
     "billing",
     "technical_support",
     "feature_request",
@@ -24,7 +19,7 @@ CATEGORIES = [
     "general_inquiry",
     "spam",
 ]
-ROUTING_TARGETS = [
+ROUTING_LITERAL = Literal[
     "tier1_support",
     "tier2_support",
     "billing_team",
@@ -34,9 +29,8 @@ ROUTING_TARGETS = [
     "spam_filter",
     "escalation",
 ]
-SENTIMENT_LABELS = ["positive", "neutral", "negative", "very_negative"]
-
-
+SENTIMENT_LITERAL = Literal["positive", "neutral", "negative", "very_negative"]
+TONE_LITERAL = Literal["formal", "friendly", "empathetic", "concise"]
 # ---------------------------------------------------------------------------
 # Action
 # ---------------------------------------------------------------------------
@@ -44,46 +38,66 @@ SENTIMENT_LABELS = ["positive", "neutral", "negative", "very_negative"]
 class TriageAction(BaseModel):
     """
     The agent's triage decision for the current email.
-
     Fields
     ------
-    priority : str
-        One of: urgent | high | normal | low
-    category : str
-        One of the CATEGORIES list.
-    routing_target : str
-        One of the ROUTING_TARGETS list.
-    sentiment : str
-        One of the SENTIMENT_LABELS list.
+    priority : Literal["urgent", "high", "normal", "low"]
+        Urgency level of the email.
+    category : Literal[...]
+        One of the predefined email categories (billing, technical_support, etc.).
+    routing_target : Literal[...]
+        Target team/queue to route the email to.
+    sentiment : Literal["positive", "neutral", "negative", "very_negative"]
+        Detected customer sentiment (default: "neutral").
     requires_followup : bool
-        Whether a follow-up action is needed within 24 h.
+        Whether a follow-up action is required within 24 hours.
     summary : str
-        A ≤ 2-sentence summary the agent writes for the support rep.
-    suggested_response_tone : str
-        One of: formal | friendly | empathetic | concise
+        A concise (≤ 2-sentence, ≤ 300 chars) summary for the support agent.
+    suggested_response_tone : Literal["formal", "friendly", "empathetic", "concise"]
+        Tone the agent recommends for replying.
     tags : List[str]
-        Free-form tags (0–5). Used to score keyword extraction.
+        Up to 5 normalized keyword tags extracted from the email.
+    metadata : Dict[str, Any]
+        Optional extra information (not used in grading).
     """
-
-    priority: str = Field(..., description="urgent | high | normal | low")
-    category: str = Field(..., description="Email category")
-    routing_target: str = Field(..., description="Team / queue to route to")
-    sentiment: str = Field(default="neutral", description="Customer sentiment")
-    requires_followup: bool = Field(default=False)
+    priority: PRIORITY_LITERAL
+    category: CATEGORY_LITERAL
+    routing_target: ROUTING_LITERAL
+    sentiment: SENTIMENT_LITERAL = "neutral"
+    requires_followup: bool = False
     summary: str = Field(default="", description="≤ 2-sentence summary")
-    suggested_response_tone: str = Field(default="friendly")
+    suggested_response_tone: TONE_LITERAL = "friendly"
     tags: List[str] = Field(default_factory=list, description="0–5 keyword tags")
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("summary")
+    @classmethod
+    def validate_summary(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) > 300:
+            raise ValueError("summary must be <= 300 characters")
+        return value
 
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: List[str]) -> List[str]:
+        cleaned = []
+        seen = set()
+        for tag in value[:5]:
+            tag = str(tag).strip().lower()
+            if not tag:
+                continue
+            if len(tag) > 40:
+                tag = tag[:40]
+            if tag not in seen:
+                seen.add(tag)
+                cleaned.append(tag)
+        return cleaned
 # ---------------------------------------------------------------------------
 # Observation
 # ---------------------------------------------------------------------------
-
 class EmailObservation(BaseModel):
     """
     What the agent sees each step.
-
     Fields
     ------
     done : bool
@@ -102,10 +116,8 @@ class EmailObservation(BaseModel):
     feedback : str             Human-readable grader feedback on last action.
     score_breakdown : Dict     Per-dimension scores from last step.
     """
-
     done: bool = False
     reward: Optional[float] = None
-
     email_id: str = ""
     subject: str = ""
     body: str = ""
@@ -115,24 +127,19 @@ class EmailObservation(BaseModel):
     has_attachment: bool = False
     account_tier: str = "free"
     prior_tickets: int = 0
-
     step_number: int = 0
     total_emails: int = 0
-
+    remaining_emails: int = 0
+    task_name: str = "easy_triage"
     feedback: str = ""
     score_breakdown: Dict[str, float] = Field(default_factory=dict)
-
     metadata: Dict[str, Any] = Field(default_factory=dict)
-
-
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
-
 class TriageState(BaseModel):
     """
     Episode-level metadata (not the per-step observation).
-
     Fields
     ------
     episode_id : str
@@ -142,10 +149,8 @@ class TriageState(BaseModel):
     emails_correct : int
     emails_total : int
     """
-
     episode_id: Optional[str] = None
     step_count: int = 0
-
     task_name: str = "easy_triage"
     cumulative_reward: float = 0.0
     emails_correct: int = 0

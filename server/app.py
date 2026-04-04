@@ -1,6 +1,5 @@
 """
 Email Triage Environment — FastAPI Server
-
 Exposes the standard OpenEnv HTTP endpoints:
   POST /reset
   POST /step
@@ -10,16 +9,14 @@ Exposes the standard OpenEnv HTTP endpoints:
 """
 
 from __future__ import annotations
-
 import uuid
 from typing import Any, Dict, Optional
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
 from email_triage_env.models import TriageAction, EmailObservation, TriageState
 from server.environment import EmailTriageEnvironment
+from email_triage_env.email_data import TASK_EMAIL_MAP
 
 app = FastAPI(
     title="Email Triage Environment",
@@ -47,7 +44,7 @@ _sessions: Dict[str, EmailTriageEnvironment] = {}
 def _get_or_create(session_id: Optional[str]) -> tuple[str, EmailTriageEnvironment]:
     if session_id and session_id in _sessions:
         return session_id, _sessions[session_id]
-    sid = session_id or str(uuid.uuid4())
+    sid = str(uuid.uuid4())
     env = EmailTriageEnvironment()
     _sessions[sid] = env
     return sid, env
@@ -96,29 +93,27 @@ def health() -> Dict[str, str]:
 
 @app.get("/tasks")
 def list_tasks():
+    descriptions = {
+        "easy_triage": "5 clear-signal emails. Unambiguous priority, category, and routing.",
+        "medium_triage": "5 emails with mixed signals, thread context, and multi-part issues.",
+        "hard_triage": "5 ambiguous emails with churn risk, legal implications, and competing signals.",
+    }
+    difficulties = {
+        "easy_triage": "easy",
+        "medium_triage": "medium",
+        "hard_triage": "hard",
+    }
     return {
         "tasks": [
             {
-                "name": "easy_triage",
-                "description": "5 clear-signal emails. Unambiguous priority, category, and routing.",
-                "difficulty": "easy",
-                "email_count": 5,
-            },
-            {
-                "name": "medium_triage",
-                "description": "5 emails with mixed signals, thread context, and multi-part issues.",
-                "difficulty": "medium",
-                "email_count": 5,
-            },
-            {
-                "name": "hard_triage",
-                "description": "5 ambiguous emails with churn risk, legal implications, and competing signals.",
-                "difficulty": "hard",
-                "email_count": 5,
-            },
+                "name": task_name,
+                "description": descriptions.get(task_name, ""),
+                "difficulty": difficulties.get(task_name, "unknown"),
+                "email_count": len(emails),
+            }
+            for task_name, emails in TASK_EMAIL_MAP.items()
         ]
     }
-
 
 @app.post("/reset", response_model=ResetResponse)
 def reset(req: ResetRequest) -> ResetResponse:
@@ -158,6 +153,10 @@ def state(session_id: str) -> StateResponse:
 
 
 @app.delete("/session/{session_id}")
-def close_session(session_id: str):
+def close_session(session_id: str) -> Dict[str, str]:
+    existed = session_id in _sessions
     _sessions.pop(session_id, None)
-    return {"status": "closed", "session_id": session_id}
+    return {
+        "status": "closed" if existed else "not_found",
+        "session_id": session_id,
+    }

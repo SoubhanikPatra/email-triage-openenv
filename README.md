@@ -21,6 +21,12 @@ This environment simulates a realistic support inbox. An agent reads emails one 
 
 ---
 
+## Why this matters
+
+Email triage is a real operational workflow in B2B SaaS support. Poor triage causes delayed responses, incorrect routing, customer frustration, churn risk, and missed revenue opportunities. This environment evaluates not just classification accuracy, but operational judgment: urgency assessment, team routing, escalation handling, sentiment awareness, and follow-up decisions.
+
+---
+
 ## Quick Start
 
 ### 1. Run locally
@@ -121,7 +127,7 @@ curl -X POST http://localhost:7860/step \
   "reward": 0.95,
   "done": false,
   "observation": {
-    "feedback": "Issues: Routing: predicted 'tier1_support' but gold is 'tier1_support'",
+    "feedback": "Good triage. Minor issue: low tag overlap.",
     "score_breakdown": {
       "priority": 1.0,
       "category": 1.0,
@@ -139,21 +145,23 @@ curl -X POST http://localhost:7860/step \
 
 ## Observation Space
 
-| Field             | Type | Description                                   |
-| ----------------- | ---- | --------------------------------------------- |
-| `email_id`        | str  | Unique email identifier                       |
-| `subject`         | str  | Email subject line                            |
-| `body`            | str  | Full email body                               |
-| `sender_email`    | str  | Sender's email address                        |
-| `sender_name`     | str  | Sender's display name                         |
-| `thread_length`   | int  | Number of prior emails in thread              |
-| `has_attachment`  | bool | Whether email has attachments                 |
-| `account_tier`    | str  | `free \| starter \| pro \| enterprise`        |
-| `prior_tickets`   | int  | Number of open tickets from this sender       |
-| `step_number`     | int  | Current step within the episode               |
-| `total_emails`    | int  | Total emails in this episode                  |
-| `feedback`        | str  | Human-readable grader feedback on last action |
-| `score_breakdown` | dict | Per-dimension scores from last step           |
+| Field              | Type | Description                                                     |
+| ------------------ | ---- | --------------------------------------------------------------- |
+| `email_id`         | str  | Unique email identifier                                         |
+| `subject`          | str  | Email subject line                                              |
+| `body`             | str  | Full email body                                                 |
+| `sender_email`     | str  | Sender's email address                                          |
+| `sender_name`      | str  | Sender's display name                                           |
+| `thread_length`    | int  | Number of prior emails in thread                                |
+| `has_attachment`   | bool | Whether email has attachments                                   |
+| `account_tier`     | str  | `free \| starter \| pro \| enterprise`                          |
+| `prior_tickets`    | int  | Number of open tickets from this sender                         |
+| `step_number`      | int  | Current step within the episode                                 |
+| `total_emails`     | int  | Total emails in this episode                                    |
+| `feedback`         | str  | Human-readable grader feedback on last action                   |
+| `score_breakdown`  | dict | Per-dimension scores from last step                             |
+| `remaining_emails` | int  | Number of emails remaining in the episode                       |
+| `task_name`        | str  | Current task (`easy_triage`, `medium_triage`, or `hard_triage`) |
 
 ## Action Space
 
@@ -172,18 +180,40 @@ curl -X POST http://localhost:7860/step \
 
 ## Reward Function
 
-Each step returns a reward in **[0.0, 1.0]** computed as a weighted sum:
+Each step returns a reward in **[0.0, 1.0]**.
+
+The reward is based on a deterministic grader score plus small environment-level shaping bonuses and penalties.
+
+### Grader dimensions
 
 | Dimension   | Weight | Scoring                                       |
 | ----------- | ------ | --------------------------------------------- |
-| Priority    | 0.25   | Exact = 1.0, Adjacent tier = 0.5, Wrong = 0.0 |
-| Category    | 0.25   | Exact = 1.0, else 0.0                         |
-| Routing     | 0.20   | Exact = 1.0, else 0.0                         |
-| Sentiment   | 0.10   | Exact = 1.0, Adjacent = 0.5, else 0.0         |
-| Follow-up   | 0.10   | Exact bool match                              |
-| Tag overlap | 0.10   | Jaccard similarity (partial credit)           |
+| Priority    | 0.21   | Exact = 1.0, adjacent tier = 0.5, else 0.0    |
+| Category    | 0.21   | Exact = 1.0, else 0.0                         |
+| Routing     | 0.18   | Exact = 1.0, else 0.0                         |
+| Sentiment   | 0.08   | Exact = 1.0, adjacent = 0.5, else 0.0         |
+| Follow-up   | 0.08   | Exact bool match                              |
+| Tag overlap | 0.12   | Jaccard similarity                            |
+| Summary     | 0.07   | Concise summary with coverage of key issue(s) |
+| Tone        | 0.05   | Appropriate reply tone for the situation      |
 
-**Partial credit design:** Predicting `high` instead of `urgent` scores 0.5 on priority, not 0.0 — the agent is rewarded for being in the right ballpark.
+### Reward shaping
+
+The environment adds small bonuses for especially important operational decisions, such as:
+
+- correct routing
+- correct priority
+- correct follow-up prediction
+- correct escalation on high-risk hard-task emails
+
+It also applies penalties for undesirable behavior, such as:
+
+- missing escalation on escalation-worthy cases
+- contradictory category/routing combinations
+- extremely weak triage decisions
+- empty or low-information summaries
+
+This makes the reward more realistic for RL training than simple label matching alone.
 
 ---
 
@@ -251,13 +281,13 @@ email-triage-env/
 
 ## Baseline Results
 
-Scores from `meta-llama/Llama-3.1-8B-Instruct` (greedy decoding):
+Scores from `meta-llama/Llama-3.1-8B-Instruct`:
 
-| Task          | Avg reward | Notes                                        |
-| ------------- | ---------- | -------------------------------------------- |
-| easy_triage   | ~0.80      | Struggles slightly on tag overlap            |
-| medium_triage | ~0.65      | Misses escalation signals in long threads    |
-| hard_triage   | ~0.52      | Multi-issue emails confuse routing decisions |
+| Task          | Avg reward | Notes                                                                                        |
+| ------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| easy_triage   | ~0.82      | Strong on clear-signal inboxes; occasional errors on unsubscribe/account-management handling |
+| medium_triage | ~0.86      | Performs well on mixed-signal operational cases                                              |
+| hard_triage   | ~0.64      | Still struggles on escalation-heavy and compliance-sensitive multi-issue emails              |
 
 ---
 

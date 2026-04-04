@@ -1,6 +1,5 @@
 """
 Synthetic B2B SaaS email corpus with gold-standard triage labels.
-
 Each entry is a dict with:
   subject, body, sender_email, sender_name,
   thread_length, has_attachment, account_tier, prior_tickets,
@@ -122,7 +121,6 @@ EMAILS = [
         "gold_tags": ["enterprise", "pricing", "sso", "sales"],
         "difficulty": "easy",
     },
-
     # -------------------------------------------------------------------------
     # MEDIUM — mixed signals, requires contextual reasoning
     # -------------------------------------------------------------------------
@@ -250,7 +248,6 @@ EMAILS = [
         "gold_tags": ["sso", "saml", "okta", "authentication"],
         "difficulty": "medium",
     },
-
     # -------------------------------------------------------------------------
     # HARD — ambiguous, multi-layered, requires nuanced judgment
     # -------------------------------------------------------------------------
@@ -391,13 +388,10 @@ EMAILS = [
         "difficulty": "hard",
     },
 ]
-
-
 # Convenience groupings
 EASY_EMAILS = [e for e in EMAILS if e["difficulty"] == "easy"]
 MEDIUM_EMAILS = [e for e in EMAILS if e["difficulty"] == "medium"]
 HARD_EMAILS = [e for e in EMAILS if e["difficulty"] == "hard"]
-
 TASK_EMAIL_MAP = {
     "easy_triage": EASY_EMAILS,
     "medium_triage": MEDIUM_EMAILS,

@@ -1,6 +1,5 @@
 """
-Email Triage Environment — Baseline Inference Script
-
+Email Triage Environment — Baseline Inference Script:
 Runs an LLM agent against all three tasks (easy, medium, hard) using
 the OpenAI-compatible client. Outputs the mandatory stdout format.
 
@@ -19,48 +18,37 @@ Stdout format (mandatory)
 """
 
 from __future__ import annotations
-
 from dotenv import load_dotenv
 from openai import OpenAI
-
 load_dotenv()
-
 import json
 import os
 import sys
 import time
 from typing import Any, Dict, List, Optional
-
 import requests
-
-
 # ---------------------------------------------------------------------------
 # Config from environment variables
 # ---------------------------------------------------------------------------
-
 API_BASE_URL: str = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME: str = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-API_KEY: str = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or "hf_placeholder"
+API_KEY = os.getenv("HF_TOKEN")
+if not API_KEY:
+    raise ValueError("HF_TOKEN environment variable is required")
 ENV_BASE_URL: str = os.getenv("ENV_BASE_URL", "http://localhost:7860").rstrip("/")
-
 TASKS = ["easy_triage", "medium_triage", "hard_triage"]
 MAX_STEPS_PER_TASK = 10          # generous upper bound; each task has 5 emails
 TEMPERATURE = 0.0
 MAX_TOKENS = 512
-
 # ---------------------------------------------------------------------------
 # OpenAI client
 # ---------------------------------------------------------------------------
-
 client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-
 # ---------------------------------------------------------------------------
 # Stdout helpers (mandatory format)
 # ---------------------------------------------------------------------------
-
 def log_start(task: str, model: str) -> None:
     print(f"[START] task={task} env=email-triage model={model}", flush=True)
-
 
 def log_step(
     step: int,
@@ -76,19 +64,15 @@ def log_step(
         flush=True,
     )
 
-
 def log_end(success: bool, steps: int, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
         f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
         flush=True,
     )
-
-
 # ---------------------------------------------------------------------------
 # Environment HTTP helpers
 # ---------------------------------------------------------------------------
-
 def env_reset(task_name: str) -> Dict[str, Any]:
     r = requests.post(
         f"{ENV_BASE_URL}/reset",
@@ -97,7 +81,6 @@ def env_reset(task_name: str) -> Dict[str, Any]:
     )
     r.raise_for_status()
     return r.json()
-
 
 def env_step(session_id: str, action: Dict[str, Any]) -> Dict[str, Any]:
     r = requests.post(
@@ -108,29 +91,24 @@ def env_step(session_id: str, action: Dict[str, Any]) -> Dict[str, Any]:
     r.raise_for_status()
     return r.json()
 
-
 def env_close(session_id: str) -> None:
     try:
         requests.delete(f"{ENV_BASE_URL}/session/{session_id}", timeout=10)
     except Exception:
         pass
-
-
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
-
 SYSTEM_PROMPT = """You are an expert customer support triage agent for a B2B SaaS company.
-
 Your job is to analyze incoming support emails and output a structured triage decision.
 
 ## Valid field values
-
 priority: urgent | high | normal | low
 category: billing | technical_support | feature_request | bug_report | account_management | sales_inquiry | general_inquiry | spam
 routing_target: tier1_support | tier2_support | billing_team | sales_team | engineering | account_management | spam_filter | escalation
 sentiment: positive | neutral | negative | very_negative
 suggested_response_tone: formal | friendly | empathetic | concise
+Use ONLY the allowed values above. Do not invent new categories, priorities, or routing targets.
 
 ## Routing guide
 - billing issues → billing_team
@@ -153,8 +131,15 @@ Respond with ONLY a valid JSON object, no markdown, no explanation:
   "suggested_response_tone": "...",
   "tags": ["tag1", "tag2"]
 }
+The summary must:
+- Be concise (1–2 sentences)
+- Capture the main issue clearly
+- Include key details relevant to routing and priority
+Tone guidance:
+- Use "empathetic" for frustrated, negative, or churn-risk customers
+- Use "formal" for legal/compliance or enterprise-critical issues
+- Use "friendly" for general inquiries or feature requests
 """
-
 
 def build_user_prompt(obs: Dict[str, Any]) -> str:
     email_obs = obs.get("observation", obs)
@@ -172,12 +157,9 @@ def build_user_prompt(obs: Dict[str, Any]) -> str:
     if email_obs.get("feedback"):
         lines += ["", f"[Previous feedback: {email_obs['feedback']}]"]
     return "\n".join(lines)
-
-
 # ---------------------------------------------------------------------------
 # LLM call with retry
 # ---------------------------------------------------------------------------
-
 DEFAULT_ACTION = {
     "priority": "normal",
     "category": "general_inquiry",
@@ -188,7 +170,6 @@ DEFAULT_ACTION = {
     "suggested_response_tone": "friendly",
     "tags": [],
 }
-
 
 def call_llm(user_prompt: str) -> Dict[str, Any]:
     for attempt in range(3):
@@ -220,12 +201,9 @@ def call_llm(user_prompt: str) -> Dict[str, Any]:
                 return DEFAULT_ACTION
             time.sleep(2)
     return DEFAULT_ACTION
-
-
 # ---------------------------------------------------------------------------
 # Run one task episode
 # ---------------------------------------------------------------------------
-
 def run_task(task_name: str) -> None:
     log_start(task=task_name, model=MODEL_NAME)
 
@@ -266,9 +244,10 @@ def run_task(task_name: str) -> None:
                 success = reward > 0.0 or (len(rewards) > 0 and sum(rewards) / len(rewards) >= 0.5)
                 break
 
-        # Episode-level success: average reward ≥ 0.5
         if rewards:
-            success = (sum(rewards) / len(rewards)) >= 0.5
+            weighted_score = sum(rewards) / len (rewards)
+            severe_failures = sum(1 for r in rewards if r < 0.15)
+            success = weighted_score >= 0.65 and severe_failures == 0
 
     except Exception as exc:
         error_msg = str(exc)
@@ -279,12 +258,9 @@ def run_task(task_name: str) -> None:
         if session_id:
             env_close(session_id)
         log_end(success=success, steps=steps_taken, rewards=rewards)
-
-
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-
 def main() -> None:
     # Quick health check
     try:
@@ -297,7 +273,6 @@ def main() -> None:
     for task in TASKS:
         run_task(task)
         time.sleep(1)   # polite pause between tasks
-
 
 if __name__ == "__main__":
     main()
