@@ -280,6 +280,7 @@ def run_task(task_name: str) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    
     # Quick health check
     try:
         r = requests.get(f"{ENV_BASE_URL}/health", timeout=10)
