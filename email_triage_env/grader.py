@@ -18,8 +18,10 @@ Partial credit
 - Sentiment: adjacent labels score 0.5
 - Tag overlap: Jaccard > 0 gives proportional credit
 """
+
 from __future__ import annotations
 from typing import Any, Dict, List, Tuple
+
 # ── weight table ────────────────────────────────────────────────────────────
 WEIGHTS = {
     "priority": 0.21,
@@ -31,6 +33,7 @@ WEIGHTS = {
     "summary": 0.07,
     "tone": 0.05,
 }
+
 # ordered priority scale — used for adjacency partial credit
 _PRIORITY_ORDER = ["low", "normal", "high", "urgent"]
 _SENTIMENT_ORDER = ["positive", "neutral", "negative", "very_negative"]
@@ -71,6 +74,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     """
     scores: Dict[str, float] = {}
     feedback_parts: List[str] = []
+    
     # 1. Priority
     pred_priority = str(action_dict.get("priority", "")).lower().strip()
     gold_priority = gold["gold_priority"]
@@ -81,6 +85,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
             f"Priority: predicted '{pred_priority}' but gold is '{gold_priority}' "
             f"(score {s_priority:.2f})"
         )
+        
     # 2. Category
     pred_cat = str(action_dict.get("category", "")).lower().strip()
     gold_cat = gold["gold_category"]
@@ -90,6 +95,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
         feedback_parts.append(
             f"Category: predicted '{pred_cat}' but gold is '{gold_cat}'"
         )
+        
     # 3. Routing
     pred_route = str(action_dict.get("routing_target", "")).lower().strip()
     gold_route = gold["gold_routing"]
@@ -99,6 +105,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
         feedback_parts.append(
             f"Routing: predicted '{pred_route}' but gold is '{gold_route}'"
         )
+        
     # 4. Sentiment
     pred_sent = str(action_dict.get("sentiment", "neutral")).lower().strip()
     gold_sent = gold["gold_sentiment"]
@@ -109,6 +116,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
             f"Sentiment: predicted '{pred_sent}' but gold is '{gold_sent}' "
             f"(score {s_sent:.2f})"
         )
+        
     # 5. Follow-up
     pred_fu = bool(action_dict.get("requires_followup", False))
     gold_fu = bool(gold["gold_requires_followup"])
@@ -118,6 +126,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
         feedback_parts.append(
             f"Follow-up: predicted {pred_fu} but gold is {gold_fu}"
         )
+        
     # 6. Tag overlap (Jaccard)
     pred_tags = action_dict.get("tags", [])
     gold_tags = gold["gold_tags"]
@@ -128,6 +137,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
             f"Tags: low overlap (Jaccard {s_tags:.2f}). "
             f"Gold tags: {gold_tags}"
         )
+        
     # 7. Summary quality
     pred_summary = str(action_dict.get("summary", ""))
     gold_tags = gold["gold_tags"]
@@ -137,6 +147,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
         feedback_parts.append(
             f"Summary: limited coverage of key issues/tags (score {s_summary:.2f})"
         )
+        
     # 8. Suggested response tone
     pred_tone = str(action_dict.get("suggested_response_tone", "friendly")).lower().strip()
     expected_tone = _expected_tone(gold)
@@ -147,6 +158,7 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
             f"Tone: predicted '{pred_tone}' but expected '{expected_tone}' "
             f"(score {s_tone:.2f})"
         )
+        
     # Weighted total
     total = sum(WEIGHTS[dim] * scores[dim] for dim in WEIGHTS)
 

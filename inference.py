@@ -27,26 +27,34 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 import requests
+
 # ---------------------------------------------------------------------------
 # Config from environment variables
 # ---------------------------------------------------------------------------
+
 API_BASE_URL: str = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME: str = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 API_KEY = os.getenv("HF_TOKEN")
+
 if not API_KEY:
     raise ValueError("HF_TOKEN environment variable is required")
+
 ENV_BASE_URL: str = os.getenv("ENV_BASE_URL", "http://localhost:7860").rstrip("/")
 TASKS = ["easy_triage", "medium_triage", "hard_triage"]
 MAX_STEPS_PER_TASK = 10          # generous upper bound; each task has 5 emails
 TEMPERATURE = 0.0
 MAX_TOKENS = 512
+
 # ---------------------------------------------------------------------------
 # OpenAI client
 # ---------------------------------------------------------------------------
+
 client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
 # ---------------------------------------------------------------------------
 # Stdout helpers (mandatory format)
 # ---------------------------------------------------------------------------
+
 def log_start(task: str, model: str) -> None:
     print(f"[START] task={task} env=email-triage model={model}", flush=True)
 
@@ -70,9 +78,11 @@ def log_end(success: bool, steps: int, rewards: List[float]) -> None:
         f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
         flush=True,
     )
+    
 # ---------------------------------------------------------------------------
 # Environment HTTP helpers
 # ---------------------------------------------------------------------------
+
 def env_reset(task_name: str) -> Dict[str, Any]:
     r = requests.post(
         f"{ENV_BASE_URL}/reset",
@@ -96,9 +106,11 @@ def env_close(session_id: str) -> None:
         requests.delete(f"{ENV_BASE_URL}/session/{session_id}", timeout=10)
     except Exception:
         pass
+    
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
+
 SYSTEM_PROMPT = """You are an expert customer support triage agent for a B2B SaaS company.
 Your job is to analyze incoming support emails and output a structured triage decision.
 
@@ -157,9 +169,11 @@ def build_user_prompt(obs: Dict[str, Any]) -> str:
     if email_obs.get("feedback"):
         lines += ["", f"[Previous feedback: {email_obs['feedback']}]"]
     return "\n".join(lines)
+
 # ---------------------------------------------------------------------------
 # LLM call with retry
 # ---------------------------------------------------------------------------
+
 DEFAULT_ACTION = {
     "priority": "normal",
     "category": "general_inquiry",
@@ -201,9 +215,11 @@ def call_llm(user_prompt: str) -> Dict[str, Any]:
                 return DEFAULT_ACTION
             time.sleep(2)
     return DEFAULT_ACTION
+
 # ---------------------------------------------------------------------------
 # Run one task episode
 # ---------------------------------------------------------------------------
+
 def run_task(task_name: str) -> None:
     log_start(task=task_name, model=MODEL_NAME)
 
@@ -258,9 +274,11 @@ def run_task(task_name: str) -> None:
         if session_id:
             env_close(session_id)
         log_end(success=success, steps=steps_taken, rewards=rewards)
+        
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 def main() -> None:
     # Quick health check
     try:

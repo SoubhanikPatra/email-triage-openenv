@@ -3,11 +3,14 @@ Email Triage Environment — Typed Models
 All data contracts between client and server live here.
 Action, Observation, State are Pydantic BaseModel subclasses.
 """
+
 from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator
+
 # ---------------------------------------------------------------------------
 # Shared enums (plain strings — no stdlib enum needed)
 # ---------------------------------------------------------------------------
+
 PRIORITY_LITERAL = Literal["urgent", "high", "normal", "low"]
 CATEGORY_LITERAL = Literal[
     "billing",
@@ -31,11 +34,13 @@ ROUTING_LITERAL = Literal[
 ]
 SENTIMENT_LITERAL = Literal["positive", "neutral", "negative", "very_negative"]
 TONE_LITERAL = Literal["formal", "friendly", "empathetic", "concise"]
+
 # ---------------------------------------------------------------------------
 # Action
 # ---------------------------------------------------------------------------
 
 class TriageAction(BaseModel):
+    
     """
     The agent's triage decision for the current email.
     Fields
@@ -59,6 +64,7 @@ class TriageAction(BaseModel):
     metadata : Dict[str, Any]
         Optional extra information (not used in grading).
     """
+    
     priority: PRIORITY_LITERAL
     category: CATEGORY_LITERAL
     routing_target: ROUTING_LITERAL
@@ -92,9 +98,11 @@ class TriageAction(BaseModel):
                 seen.add(tag)
                 cleaned.append(tag)
         return cleaned
+    
 # ---------------------------------------------------------------------------
 # Observation
 # ---------------------------------------------------------------------------
+
 class EmailObservation(BaseModel):
     """
     What the agent sees each step.
@@ -134,9 +142,11 @@ class EmailObservation(BaseModel):
     feedback: str = ""
     score_breakdown: Dict[str, float] = Field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
+
 class TriageState(BaseModel):
     """
     Episode-level metadata (not the per-step observation).
