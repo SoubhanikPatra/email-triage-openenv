@@ -21,6 +21,12 @@ This environment simulates a realistic support inbox. An agent reads emails one 
 
 ---
 
+## Why this environment is realistic
+
+This environment models real operational risk in B2B SaaS support. Incorrect triage decisions — such as misrouting enterprise customers, failing to escalate churn-risk cases, or mishandling legal/compliance-sensitive requests — are explicitly penalized. This makes the environment useful not just for classification, but for evaluating practical decision-making under business constraints. As a result, the environment evaluates not only label accuracy, but also whether an agent makes support decisions that minimize churn, SLA risk, and revenue loss.
+
+---
+
 ## Why this matters
 
 Email triage is a real operational workflow in B2B SaaS support. Poor triage causes delayed responses, incorrect routing, customer frustration, churn risk, and missed revenue opportunities. This environment evaluates not just classification accuracy, but operational judgment: urgency assessment, team routing, escalation handling, sentiment awareness, and follow-up decisions.
@@ -205,6 +211,8 @@ The environment adds small bonuses for especially important operational decision
 - correct priority
 - correct follow-up prediction
 - correct escalation on high-risk hard-task emails
+- enterprise customer handling
+- repeated-ticket / churn-risk context
 
 It also applies penalties for undesirable behavior, such as:
 

@@ -40,7 +40,6 @@ TONE_LITERAL = Literal["formal", "friendly", "empathetic", "concise"]
 # ---------------------------------------------------------------------------
 
 class TriageAction(BaseModel):
-    
     """
     The agent's triage decision for the current email.
     Fields

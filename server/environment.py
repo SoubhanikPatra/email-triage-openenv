@@ -109,6 +109,13 @@ class EmailTriageEnvironment:
             and action_dict.get("suggested_response_tone") == "empathetic"
         ):
             reward += 0.05
+        # Business-impact shaping
+        # Enterprise customers matter more operationally
+        if email.get("account_tier") == "enterprise":
+            reward += 0.05
+        # Repeated prior tickets indicate ongoing support burden / churn risk
+        if email.get("prior_tickets", 0) >= 3:
+            reward += 0.03
         # ------------------------------------------------------------------
         # Penalties for undesirable behavior
         # ------------------------------------------------------------------
@@ -136,6 +143,17 @@ class EmailTriageEnvironment:
         done = self._cursor >= len(self._emails)
         self._done = done
 
+        # Risk-aware feedback for operational realism
+        risk_notes = []
+        if email.get("account_tier") == "enterprise" and breakdown.get("routing", 0.0) < 1.0:
+            risk_notes.append("High-risk: enterprise customer misrouted.")
+        if email.get("gold_routing") == "escalation" and action_dict.get("routing_target") != "escalation":
+            risk_notes.append("Critical mistake: escalation-worthy case was not escalated.")
+        if email.get("gold_sentiment") == "very_negative" and action_dict.get("suggested_response_tone") not in {"empathetic", "formal"}:
+            risk_notes.append("Risk: response tone may be inappropriate for a high-frustration customer.")
+        if risk_notes:
+            feedback = feedback + " " + " ".join(risk_notes)
+            
         return self._make_observation(
             reward=reward,
             done=done,
