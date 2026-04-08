@@ -90,6 +90,9 @@ class StateResponse(BaseModel):
 def health() -> Dict[str, str]:
     return {"status": "healthy", "environment": "email-triage"}
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "Email Triage Environment running"}
 
 @app.get("/tasks")
 def list_tasks():

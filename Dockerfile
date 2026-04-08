@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+ENV PORT=7860
+
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -23,4 +25,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 7860
 
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "${PORT}"]
