@@ -162,6 +162,10 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     # Weighted total
     total = sum(WEIGHTS[dim] * scores[dim] for dim in WEIGHTS)
 
+    # Keep task/grader scores strictly inside (0, 1)
+    EPS = 1e-4
+    total = max(EPS, min(1.0 - EPS, total))
+
     feedback = (
         "Perfect triage!" if not feedback_parts
         else "Issues: " + "; ".join(feedback_parts)

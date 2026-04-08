@@ -132,7 +132,7 @@ class EmailTriageEnvironment:
         if len(summary.split()) < 3:
             reward -= 0.05
         # Clip into valid range, but reduce too many perfect scores
-        reward = max(0.0, min(0.98, round(reward, 4)))
+        reward = max(0.0001, min(0.98, round(reward, 4)))
 
         self._state.step_count += 1
         self._state.cumulative_reward += reward
