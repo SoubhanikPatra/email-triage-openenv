@@ -119,13 +119,19 @@ def list_tasks():
     }
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(req: ResetRequest) -> ResetResponse:
-    sid, env = _get_or_create(req.session_id)
+def reset(req: Optional[ResetRequest] = None) -> ResetResponse:
+    task_name = req.task_name if req else "easy_triage"
+    seed = req.seed if req else None
+    session_id = req.session_id if req else None
+
+    sid, env = _get_or_create(session_id)
+
     obs = env.reset(
-        task_name=req.task_name,
-        seed=req.seed,
+        task_name=task_name,
+        seed=seed,
         episode_id=sid,
     )
+
     return ResetResponse(session_id=sid, observation=obs)
 
 
