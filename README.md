@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Email Triage Environment
 
 > **OpenEnv-compatible RL environment** for training and evaluating AI agents on realistic B2B SaaS email triage.
@@ -302,3 +303,15 @@ Scores from `meta-llama/Llama-3.1-8B-Instruct`:
 ## License
 
 Apache 2.0
+=======
+---
+title: Email Triage Openenv
+emoji: 🐢
+colorFrom: indigo
+colorTo: green
+sdk: docker
+pinned: false
+---
+
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+>>>>>>> 4a2ab8dd2d9faed869dc2a4510a06296e21f3b72
