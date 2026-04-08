@@ -71,7 +71,7 @@ class EmailTriageEnvironment:
     def step(self, action: TriageAction, **kwargs: Any) -> EmailObservation:
         if self._done or self._cursor >= len(self._emails):
             return self._make_observation(
-                reward=0.0,
+                reward=0.0001,
                 done=True,
                 feedback="Episode already finished.",
                 score_breakdown={},
@@ -132,7 +132,8 @@ class EmailTriageEnvironment:
         if len(summary.split()) < 3:
             reward -= 0.05
         # Clip into valid range, but reduce too many perfect scores
-        reward = max(0.0001, min(0.98, round(reward, 4)))
+        EPS = 1e-4
+        reward = max(EPS, min(1.0 - EPS, round(reward, 4)))
 
         self._state.step_count += 1
         self._state.cumulative_reward += reward
