@@ -245,7 +245,7 @@ def run_task(task_name: str) -> None:
             action = call_llm(user_prompt)
 
             step_data = env_step(session_id, action)
-            reward = float(step_data.get("reward", 0.0))
+            reward = float(step_data.get("reward", 0.0001))
             done = bool(step_data.get("done", False))
             error_msg = None  # no hard errors in this env
 
@@ -257,7 +257,7 @@ def run_task(task_name: str) -> None:
 
             obs = step_data
             if done:
-                success = reward > 0.0 or (len(rewards) > 0 and sum(rewards) / len(rewards) >= 0.5)
+                success = reward > 0.0001 or (len(rewards) > 0 and sum(rewards) / len(rewards) >= 0.5)
                 break
 
         if rewards:

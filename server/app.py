@@ -148,7 +148,7 @@ def step(req: StepRequest) -> StepResponse:
     return StepResponse(
         session_id=sid,
         observation=obs,
-        reward=obs.reward if obs.reward is not None else 0.0,
+        reward=obs.reward if obs.reward is not None else 0.0001,
         done=obs.done,
     )
 

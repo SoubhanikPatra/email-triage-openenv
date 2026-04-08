@@ -86,13 +86,13 @@ class EmailTriageEnvironment:
         # Reward shaping: emphasize operationally important decisions
         # ------------------------------------------------------------------
         # Routing matters a lot in real inbox triage
-        if breakdown.get("routing", 0.0) == 1.0:
+        if breakdown.get("routing", 0.0) >= 0.999:
             reward += 0.10
         # Priority matters too
-        if breakdown.get("priority", 0.0) == 1.0:
+        if breakdown.get("priority", 0.0) >= 0.999:
             reward += 0.05
         # Follow-up correctness matters for enterprise/churn/legal cases
-        if breakdown.get("followup", 0.0) == 1.0:
+        if breakdown.get("followup", 0.0) >= 0.999:
             reward += 0.05
         # Hard-task escalation/compliance sensitivity
         if email.get("difficulty") == "hard":
