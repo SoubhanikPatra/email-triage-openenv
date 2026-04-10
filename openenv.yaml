@@ -8,24 +8,29 @@ description: >
 author: openenv-hackathon
 license: Apache-2.0
 
+graders:
+  email_triage_grader:
+    module: email_triage_env
+    function: grade
+
 tasks:
   - name: easy_triage
     description: "5 clear-signal emails — unambiguous priority, category, routing"
     difficulty: easy
     max_steps: 5
-    grader: email_triage_env.grader:grade
+    grader: email_triage_grader
 
   - name: medium_triage
     description: "5 emails with mixed signals, thread context, multi-part issues"
     difficulty: medium
     max_steps: 5
-    grader: email_triage_env.grader:grade
+    grader: email_triage_grader
 
   - name: hard_triage
     description: "5 ambiguous emails with churn risk, legal implications, competing signals"
     difficulty: hard
     max_steps: 5
-    grader: email_triage_env.grader:grade
+    grader: email_triage_grader
 
 observation_space:
   type: object
