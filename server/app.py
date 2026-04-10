@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from email_triage_env.models import TriageAction, EmailObservation, TriageState
 from server.environment import EmailTriageEnvironment
 from email_triage_env.email_data import TASK_EMAIL_MAP
+from graders import GRADERS
 
 app = FastAPI(
     title="Email Triage Environment",
@@ -81,7 +82,15 @@ class StateResponse(BaseModel):
     session_id: str
     state: TriageState
 
+class GraderRequest(BaseModel):
+    task_id: str
+    state: Dict[str, Any]
+    reward: float
 
+
+class GraderResponse(BaseModel):
+    task_id: str
+    score: float
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -106,15 +115,25 @@ def list_tasks():
         "medium_triage": "medium",
         "hard_triage": "hard",
     }
+    grader_map = {
+        "easy_triage": "graders:grade_easy_triage",
+        "medium_triage": "graders:grade_medium_triage",
+        "hard_triage": "graders:grade_hard_triage",
+    }
+
     return {
         "tasks": [
             {
                 "id": task_name,
+                "task_id": task_name,
                 "name": task_name,
                 "description": descriptions.get(task_name, ""),
                 "difficulty": difficulties.get(task_name, "unknown"),
                 "email_count": len(emails),
-                "grader": "email_triage_env.grader:grade",
+                "grader": grader_map[task_name],
+                "graders": [grader_map[task_name]],
+                "reset_params": {"task_name": task_name},
+                "max_steps": 5,
             }
             for task_name, emails in TASK_EMAIL_MAP.items()
         ]
@@ -171,6 +190,20 @@ def close_session(session_id: str) -> Dict[str, str]:
         "status": "closed" if existed else "not_found",
         "session_id": session_id,
     }
+
+@app.post("/grader", response_model=GraderResponse)
+def grader_endpoint(req: GraderRequest) -> GraderResponse:
+    grader_fn = GRADERS.get(req.task_id)
+    if grader_fn is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No grader found for task_id={req.task_id}",
+        )
+
+    score = grader_fn(req.state, req.reward)
+    score = max(0.001, min(0.999, round(float(score), 3)))
+
+    return GraderResponse(task_id=req.task_id, score=score)
 
 def main() -> None:
     import uvicorn
