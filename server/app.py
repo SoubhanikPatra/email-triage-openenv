@@ -113,7 +113,7 @@ def list_tasks():
                 "description": descriptions.get(task_name, ""),
                 "difficulty": difficulties.get(task_name, "unknown"),
                 "email_count": len(emails),
-                "graders": ["email_triage_grader"],
+                "grader": "email_triage_grader",
             }
             for task_name, emails in TASK_EMAIL_MAP.items()
         ]
