@@ -9,7 +9,7 @@ import random
 import uuid
 from typing import Any, Dict, List, Optional
 from email_triage_env.email_data import TASK_EMAIL_MAP, EMAILS
-from email_triage_env.grader import grade
+from email_triage_env.grader import grade_detailed
 from email_triage_env.models import (
     EmailObservation,
     TriageAction,
@@ -79,7 +79,7 @@ class EmailTriageEnvironment:
         email = self._emails[self._cursor]
         action_dict = action.model_dump()
 
-        base_score, breakdown, feedback = grade(action_dict, email)
+        base_score, breakdown, feedback = grade_detailed(action_dict, email)
 
         reward = base_score
         # ------------------------------------------------------------------
