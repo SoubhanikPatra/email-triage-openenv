@@ -43,25 +43,25 @@ def _adjacent_score(value: str, gold: str, scale: List[str]) -> float:
     try:
         vi, gi = scale.index(value), scale.index(gold)
     except ValueError:
-        return 1e-4
+        return 0.001
     diff = abs(vi - gi)
     if diff == 0:
-        return 1.0 - 1e-4
+        return 0.999
     if diff == 1:
         return 0.5
-    return 1e-4
+    return 0.001
 
 def _jaccard(predicted: List[str], gold: List[str]) -> float:
     p = {t.lower().strip() for t in predicted}
     g = {t.lower().strip() for t in gold}
     if not g:
-        return 1.0 - 1e-4 # no tags required → full marks
+        return 0.999 # no tags required → full marks
     union = p | g
     if not union:
-        return 1e-4
+        return 0.001
     result = len(p & g) / len(union)
     # Ensure strictly in (0, 1), handling perfect overlap (1.0) and no overlap (0.0)
-    return max(1e-4, min(1.0 - 1e-4, result))
+    return max(0.001, min(0.999, result))
 
 def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dict[str, float], str]:
     """
@@ -74,6 +74,13 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     -------
     (total_score, breakdown, feedback_message)
     """
+    EPS = 1e-4
+    
+    def _bound_score(value: float) -> float:
+        """Ensure score is strictly in (0, 1)."""
+        # Use 0.001 and 0.999 to avoid boundary issues when rounding/serializing
+        return max(0.001, min(0.999, round(value, 3)))
+    
     scores: Dict[str, float] = {}
     feedback_parts: List[str] = []
     
@@ -81,19 +88,19 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     pred_priority = str(action_dict.get("priority", "")).lower().strip()
     gold_priority = gold["gold_priority"]
     s_priority = _adjacent_score(pred_priority, gold_priority, _PRIORITY_ORDER)
-    scores["priority"] = s_priority
-    if s_priority < 1.0:
+    scores["priority"] = _bound_score(s_priority)
+    if scores["priority"] < 1.0 - EPS:
         feedback_parts.append(
             f"Priority: predicted '{pred_priority}' but gold is '{gold_priority}' "
-            f"(score {s_priority:.2f})"
+            f"(score {scores['priority']:.2f})"
         )
         
     # 2. Category
     pred_cat = str(action_dict.get("category", "")).lower().strip()
     gold_cat = gold["gold_category"]
-    s_cat = 1.0 - 1e-4 if pred_cat == gold_cat else 1e-4
-    scores["category"] = s_cat
-    if s_cat < 1.0:
+    s_cat = 0.999 if pred_cat == gold_cat else 0.001
+    scores["category"] = _bound_score(s_cat)
+    if scores["category"] < 1.0 - EPS:
         feedback_parts.append(
             f"Category: predicted '{pred_cat}' but gold is '{gold_cat}'"
         )
@@ -101,9 +108,9 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     # 3. Routing
     pred_route = str(action_dict.get("routing_target", "")).lower().strip()
     gold_route = gold["gold_routing"]
-    s_route = 1.0 - 1e-4 if pred_route == gold_route else 1e-4
-    scores["routing"] = s_route
-    if s_route < 1.0:
+    s_route = 0.999 if pred_route == gold_route else 0.001
+    scores["routing"] = _bound_score(s_route)
+    if scores["routing"] < 1.0 - EPS:
         feedback_parts.append(
             f"Routing: predicted '{pred_route}' but gold is '{gold_route}'"
         )
@@ -112,19 +119,19 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     pred_sent = str(action_dict.get("sentiment", "neutral")).lower().strip()
     gold_sent = gold["gold_sentiment"]
     s_sent = _adjacent_score(pred_sent, gold_sent, _SENTIMENT_ORDER)
-    scores["sentiment"] = s_sent
-    if s_sent < 1.0:
+    scores["sentiment"] = _bound_score(s_sent)
+    if scores["sentiment"] < 1.0 - EPS:
         feedback_parts.append(
             f"Sentiment: predicted '{pred_sent}' but gold is '{gold_sent}' "
-            f"(score {s_sent:.2f})"
+            f"(score {scores['sentiment']:.2f})"
         )
         
     # 5. Follow-up
     pred_fu = bool(action_dict.get("requires_followup", False))
     gold_fu = bool(gold["gold_requires_followup"])
-    s_fu = 1.0 - 1e-4 if pred_fu == gold_fu else 1e-4
-    scores["followup"] = s_fu
-    if s_fu < 1.0:
+    s_fu = 0.999 if pred_fu == gold_fu else 0.001
+    scores["followup"] = _bound_score(s_fu)
+    if scores["followup"] < 1.0 - EPS:
         feedback_parts.append(
             f"Follow-up: predicted {pred_fu} but gold is {gold_fu}"
         )
@@ -133,10 +140,10 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     pred_tags = action_dict.get("tags", [])
     gold_tags = gold["gold_tags"]
     s_tags = _jaccard(pred_tags, gold_tags)
-    scores["tag_overlap"] = s_tags
-    if s_tags < 0.5:
+    scores["tag_overlap"] = _bound_score(s_tags)
+    if scores["tag_overlap"] < 0.5:
         feedback_parts.append(
-            f"Tags: low overlap (Jaccard {s_tags:.2f}). "
+            f"Tags: low overlap (Jaccard {scores['tag_overlap']:.2f}). "
             f"Gold tags: {gold_tags}"
         )
         
@@ -144,21 +151,21 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     pred_summary = str(action_dict.get("summary", ""))
     gold_tags = gold["gold_tags"]
     s_summary = _summary_score(pred_summary, gold_tags)
-    scores["summary"] = s_summary
-    if s_summary < 1.0:
+    scores["summary"] = _bound_score(s_summary)
+    if scores["summary"] < 1.0 - EPS:
         feedback_parts.append(
-            f"Summary: limited coverage of key issues/tags (score {s_summary:.2f})"
+            f"Summary: limited coverage of key issues/tags (score {scores['summary']:.2f})"
         )
         
     # 8. Suggested response tone
     pred_tone = str(action_dict.get("suggested_response_tone", "friendly")).lower().strip()
     expected_tone = _expected_tone(gold)
     s_tone = _tone_score(pred_tone, expected_tone)
-    scores["tone"] = s_tone
-    if s_tone < 1.0:
+    scores["tone"] = _bound_score(s_tone)
+    if scores["tone"] < 1.0 - EPS:
         feedback_parts.append(
             f"Tone: predicted '{pred_tone}' but expected '{expected_tone}' "
-            f"(score {s_tone:.2f})"
+            f"(score {scores['tone']:.2f})"
         )
         
     # Weighted total
@@ -169,18 +176,15 @@ def grade(action_dict: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
         else "Issues: " + "; ".join(feedback_parts)
     )
     
-    # Round first, then apply bounds to ensure strictly inside (0, 1)
-    # This prevents rounding from pushing values to exactly 0 or 1
-    total = round(total, 4)
-    EPS = 1e-4
-    total = max(EPS, min(1.0 - EPS, total))
+    # Ensure total is strictly in (0, 1)
+    total = _bound_score(total)
     
     return total, scores, feedback
 
 def _summary_score(summary: str, gold_tags: List[str]) -> float:
     summary = (summary or "").lower().strip()
     if not summary:
-        return 1e-4
+        return 0.001
 
     words = summary.split()
     if len(words) < 4:
@@ -195,7 +199,7 @@ def _summary_score(summary: str, gold_tags: List[str]) -> float:
             matches += 1
 
     if matches >= 2:
-        return 1.0 - 1e-4
+        return 0.999
     if matches == 1:
         return 0.7
     return 0.4
@@ -216,7 +220,7 @@ def _tone_score(pred_tone: str, expected_tone: str) -> float:
     expected_tone = expected_tone.strip().lower()
 
     if pred_tone == expected_tone:
-        return 1.0 - 1e-4
+        return 0.999
 
     acceptable_pairs = {
         ("formal", "empathetic"),
@@ -228,4 +232,4 @@ def _tone_score(pred_tone: str, expected_tone: str) -> float:
     if (pred_tone, expected_tone) in acceptable_pairs:
         return 0.5
 
-    return 0.0001
+    return 0.001
