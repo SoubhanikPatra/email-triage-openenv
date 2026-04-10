@@ -13,16 +13,19 @@ tasks:
     description: "5 clear-signal emails — unambiguous priority, category, routing"
     difficulty: easy
     max_steps: 5
+    grader: email_triage_env.grader:grade
 
   - name: medium_triage
     description: "5 emails with mixed signals, thread context, multi-part issues"
     difficulty: medium
     max_steps: 5
+    grader: email_triage_env.grader:grade
 
   - name: hard_triage
     description: "5 ambiguous emails with churn risk, legal implications, competing signals"
     difficulty: hard
     max_steps: 5
+    grader: email_triage_env.grader:grade
 
 observation_space:
   type: object
