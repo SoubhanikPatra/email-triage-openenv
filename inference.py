@@ -1,297 +1,272 @@
-"""
-Email Triage Environment — Baseline Inference Script:
-Runs an LLM agent against all three tasks (easy, medium, hard) using
-the OpenAI-compatible client. Outputs the mandatory stdout format.
-
-Environment variables
----------------------
-API_BASE_URL   LLM API base URL  (default: https://router.huggingface.co/v1)
-MODEL_NAME     Model identifier   (default: meta-llama/Llama-3.1-8B-Instruct)
-HF_TOKEN       API key
-ENV_BASE_URL   Email triage server URL (default: http://localhost:7860)
-
-Stdout format (mandatory)
--------------------------
-[START] task=<task_name> env=email-triage model=<model>
-[STEP]  step=<n> action=<json> reward=<0.00> done=<true|false> error=<msg|null>
-[END]   success=<true|false> steps=<n> rewards=<r1,r2,...>
-"""
+"""Project-aligned inference runner for Email Triage OpenEnv."""
 
 from __future__ import annotations
-from dotenv import load_dotenv
-from openai import OpenAI
-load_dotenv()
+
 import json
 import os
-import sys
-import time
-from typing import Any, Dict, List, Optional
+import textwrap
+from typing import Any, Dict, List, Optional, Tuple
 import requests
+from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
 
-# ---------------------------------------------------------------------------
-# Config from environment variables
-# ---------------------------------------------------------------------------
-
-API_BASE_URL: str = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME: str = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 API_KEY = os.getenv("HF_TOKEN")
+API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 
-if not API_KEY:
-    raise ValueError("HF_TOKEN environment variable is required")
+# Compatibility aliases for platform/static checks from official template.
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME")
 
-ENV_BASE_URL: str = os.getenv("ENV_BASE_URL", "http://localhost:7860").rstrip("/")
-TASKS = ["easy_triage", "medium_triage", "hard_triage"]
-MAX_STEPS_PER_TASK = 10          # generous upper bound; each task has 5 emails
-TEMPERATURE = 0.0
-MAX_TOKENS = 512
+ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
+TASK_NAME = (
+    os.getenv("TASK_NAME")
+    or os.getenv("EMAIL_TRIAGE_TASK")
+    or "easy_triage"
+)
+BENCHMARK = os.getenv("BENCHMARK") or "email-triage"
 
-# ---------------------------------------------------------------------------
-# OpenAI client
-# ---------------------------------------------------------------------------
+MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
+TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "350"))
+SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.70"))
 
-client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+SYSTEM_PROMPT = textwrap.dedent(
+    """
+    You are an expert B2B SaaS support triage agent.
+    Return exactly one JSON object with keys:
+    priority, category, routing_target, sentiment, requires_followup,
+    summary, suggested_response_tone, tags.
 
-# ---------------------------------------------------------------------------
-# Stdout helpers (mandatory format)
-# ---------------------------------------------------------------------------
+    Valid values:
+    priority: urgent|high|normal|low
+    category: billing|technical_support|feature_request|bug_report|account_management|sales_inquiry|general_inquiry|spam
+    routing_target: tier1_support|tier2_support|billing_team|sales_team|engineering|account_management|spam_filter|escalation
+    sentiment: positive|neutral|negative|very_negative
+    suggested_response_tone: formal|friendly|empathetic|concise
+    tags: list of 0-5 short lower-case strings
 
-def log_start(task: str, model: str) -> None:
-    print(f"[START] task={task} env=email-triage model={model}", flush=True)
+    Rules:
+    - summary should be concise and useful for a support rep.
+    - avoid markdown, backticks, and extra text outside JSON.
+    """
+).strip()
 
-def log_step(
-    step: int,
-    action: str,
-    reward: float,
-    done: bool,
-    error: Optional[str],
-) -> None:
-    err_val = error if error else "null"
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    done_val = str(done).lower()
+    error_val = error if error else "null"
     print(
-        f"[STEP] step={step} action={action} "
-        f"reward={reward:.2f} done={str(done).lower()} error={err_val}",
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
         flush=True,
     )
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
         flush=True,
     )
-    
-# ---------------------------------------------------------------------------
-# Environment HTTP helpers
-# ---------------------------------------------------------------------------
 
-def env_reset(task_name: str) -> Dict[str, Any]:
-    r = requests.post(
-        f"{ENV_BASE_URL}/reset",
-        json={"task_name": task_name},
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json()
 
-def env_step(session_id: str, action: Dict[str, Any]) -> Dict[str, Any]:
-    r = requests.post(
-        f"{ENV_BASE_URL}/step",
-        json={"session_id": session_id, "action": action},
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json()
+def _safe_json_dumps(data: Dict[str, Any]) -> str:
+    return json.dumps(data, separators=(",", ":"), ensure_ascii=True)
 
-def env_close(session_id: str) -> None:
-    try:
-        requests.delete(f"{ENV_BASE_URL}/session/{session_id}", timeout=10)
-    except Exception:
-        pass
-    
-# ---------------------------------------------------------------------------
-# System prompt
-# ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are an expert customer support triage agent for a B2B SaaS company.
-Your job is to analyze incoming support emails and output a structured triage decision.
+def _clamp_score(value: float) -> float:
+    return min(max(value, 0.0), 1.0)
 
-## Valid field values
-priority: urgent | high | normal | low
-category: billing | technical_support | feature_request | bug_report | account_management | sales_inquiry | general_inquiry | spam
-routing_target: tier1_support | tier2_support | billing_team | sales_team | engineering | account_management | spam_filter | escalation
-sentiment: positive | neutral | negative | very_negative
-suggested_response_tone: formal | friendly | empathetic | concise
-Use ONLY the allowed values above. Do not invent new categories, priorities, or routing targets.
 
-## Routing guide
-- billing issues → billing_team
-- simple how-to questions → tier1_support
-- technical bugs / API issues → tier2_support
-- sales / pricing / upgrade inquiries → sales_team
-- angry enterprise customer at churn-risk or legal data request → escalation
-- unsubscribe / account deletion → account_management
-- spam → spam_filter
-
-## Output format
-Respond with ONLY a valid JSON object, no markdown, no explanation:
-{
-  "priority": "...",
-  "category": "...",
-  "routing_target": "...",
-  "sentiment": "...",
-  "requires_followup": true|false,
-  "summary": "One or two sentence summary for the support rep.",
-  "suggested_response_tone": "...",
-  "tags": ["tag1", "tag2"]
-}
-The summary must:
-- Be concise (1–2 sentences)
-- Capture the main issue clearly
-- Include key details relevant to routing and priority
-Tone guidance:
-- Use "empathetic" for frustrated, negative, or churn-risk customers
-- Use "formal" for legal/compliance or enterprise-critical issues
-- Use "friendly" for general inquiries or feature requests
-"""
-
-def build_user_prompt(obs: Dict[str, Any]) -> str:
-    email_obs = obs.get("observation", obs)
-    lines = [
-        f"From: {email_obs.get('sender_name', '')} <{email_obs.get('sender_email', '')}>",
-        f"Subject: {email_obs.get('subject', '')}",
-        f"Account tier: {email_obs.get('account_tier', 'unknown')}",
-        f"Prior open tickets: {email_obs.get('prior_tickets', 0)}",
-        f"Thread depth: {email_obs.get('thread_length', 0)} prior messages",
-        f"Has attachment: {email_obs.get('has_attachment', False)}",
-        "",
-        "--- Email body ---",
-        email_obs.get("body", ""),
+def _extract_observation_fields(observation: Dict[str, Any]) -> Dict[str, Any]:
+    keys = [
+        "email_id",
+        "subject",
+        "body",
+        "sender_email",
+        "sender_name",
+        "account_tier",
+        "prior_tickets",
+        "thread_length",
+        "has_attachment",
+        "feedback",
     ]
-    if email_obs.get("feedback"):
-        lines += ["", f"[Previous feedback: {email_obs['feedback']}]"]
-    return "\n".join(lines)
+    return {key: observation.get(key) for key in keys}
 
-# ---------------------------------------------------------------------------
-# LLM call with retry
-# ---------------------------------------------------------------------------
 
-DEFAULT_ACTION = {
-    "priority": "normal",
-    "category": "general_inquiry",
-    "routing_target": "tier1_support",
-    "sentiment": "neutral",
-    "requires_followup": False,
-    "summary": "Unable to parse email.",
-    "suggested_response_tone": "friendly",
-    "tags": [],
-}
+def build_user_prompt(step: int, observation: Dict[str, Any], history: List[str]) -> str:
+    obs_block = json.dumps(_extract_observation_fields(observation), indent=2, ensure_ascii=True)
+    history_block = "\n".join(history[-4:]) if history else "None"
+    return textwrap.dedent(
+        f"""
+        Step: {step}
+        Current observation:
+        {obs_block}
 
-def call_llm(user_prompt: str) -> Dict[str, Any]:
-    for attempt in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=TEMPERATURE,
-                max_tokens=MAX_TOKENS,
-            )
-            text = completion.choices[0].message.content or ""
-            # Strip markdown fences if present
-            text = text.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            return json.loads(text.strip())
-        except json.JSONDecodeError:
-            if attempt == 2:
-                return DEFAULT_ACTION
-            time.sleep(1)
-        except Exception as exc:
-            print(f"[DEBUG] LLM error (attempt {attempt+1}): {exc}", file=sys.stderr)
-            if attempt == 2:
-                return DEFAULT_ACTION
-            time.sleep(2)
-    return DEFAULT_ACTION
+        Recent history:
+        {history_block}
 
-# ---------------------------------------------------------------------------
-# Run one task episode
-# ---------------------------------------------------------------------------
+        Produce the best triage action as valid JSON only.
+        """
+    ).strip()
 
-def run_task(task_name: str) -> None:
-    log_start(task=task_name, model=MODEL_NAME)
+
+def _default_action() -> Dict[str, Any]:
+    return {
+        "priority": "normal",
+        "category": "general_inquiry",
+        "routing_target": "tier1_support",
+        "sentiment": "neutral",
+        "requires_followup": False,
+        "summary": "General customer inquiry requiring standard support review.",
+        "suggested_response_tone": "friendly",
+        "tags": ["general_inquiry"],
+    }
+
+
+def _normalize_action(candidate: Dict[str, Any]) -> Dict[str, Any]:
+    action = _default_action()
+
+    if isinstance(candidate.get("priority"), str):
+        action["priority"] = candidate["priority"].strip().lower()
+    if isinstance(candidate.get("category"), str):
+        action["category"] = candidate["category"].strip().lower()
+    if isinstance(candidate.get("routing_target"), str):
+        action["routing_target"] = candidate["routing_target"].strip().lower()
+    if isinstance(candidate.get("sentiment"), str):
+        action["sentiment"] = candidate["sentiment"].strip().lower()
+
+    action["requires_followup"] = bool(candidate.get("requires_followup", action["requires_followup"]))
+
+    summary = str(candidate.get("summary", action["summary"]))
+    action["summary"] = summary.strip()[:300]
+
+    if isinstance(candidate.get("suggested_response_tone"), str):
+        action["suggested_response_tone"] = candidate["suggested_response_tone"].strip().lower()
+
+    tags = candidate.get("tags", action["tags"])
+    if isinstance(tags, list):
+        normalized_tags: List[str] = []
+        for tag in tags:
+            clean = str(tag).strip().lower()
+            if clean and clean not in normalized_tags:
+                normalized_tags.append(clean)
+            if len(normalized_tags) == 5:
+                break
+        action["tags"] = normalized_tags or action["tags"]
+
+    return action
+
+
+def get_model_action(client: OpenAI, step: int, observation: Dict[str, Any], history: List[str]) -> Tuple[Dict[str, Any], Optional[str]]:
+    prompt = build_user_prompt(step, observation, history)
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=TEMPERATURE,
+            max_tokens=MAX_TOKENS,
+            stream=False,
+            response_format={"type": "json_object"},
+        )
+        text = (completion.choices[0].message.content or "").strip()
+        parsed = json.loads(text) if text else {}
+        return _normalize_action(parsed), None
+    except Exception as exc:
+        return _default_action(), str(exc)
+
+
+def reset_env(task_name: str) -> Tuple[str, Dict[str, Any]]:
+    payload = {"task_name": task_name}
+    response = requests.post(f"{ENV_BASE_URL}/reset", json=payload, timeout=30)
+    response.raise_for_status()
+    body = response.json()
+    return body["session_id"], body["observation"]
+
+
+def step_env(session_id: str, action: Dict[str, Any]) -> Dict[str, Any]:
+    payload = {"session_id": session_id, "action": action}
+    response = requests.post(f"{ENV_BASE_URL}/step", json=payload, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def close_session(session_id: Optional[str]) -> None:
+    if not session_id:
+        return
+    try:
+        requests.delete(f"{ENV_BASE_URL}/session/{session_id}", timeout=15)
+    except Exception:
+        return
+
+
+def main() -> None:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    session_id: Optional[str] = None
 
     rewards: List[float] = []
+    history: List[str] = []
     steps_taken = 0
+    score = 0.0
     success = False
-    session_id: Optional[str] = None
-    error_msg: Optional[str] = None
+
+    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        reset_data = env_reset(task_name)
-        session_id = reset_data["session_id"]
-        if not isinstance(session_id, str) or not session_id:
-            raise ValueError("Invalid session_id returned by /reset")
-        obs = reset_data
+        session_id, observation = reset_env(TASK_NAME)
 
-        for step in range(1, MAX_STEPS_PER_TASK + 1):
-            email_obs = obs.get("observation", obs)
-            if email_obs.get("done", False):
+        for step in range(1, MAX_STEPS + 1):
+            if bool(observation.get("done", False)):
                 break
 
-            user_prompt = build_user_prompt(obs)
-            action = call_llm(user_prompt)
+            action, model_error = get_model_action(client, step, observation, history)
+            step_result = step_env(session_id, action)
+            observation = step_result.get("observation", {})
 
-            step_data = env_step(session_id, action)
-            reward = float(step_data.get("reward", 0.0001))
-            done = bool(step_data.get("done", False))
-            error_msg = None  # no hard errors in this env
+            reward = float(step_result.get("reward", 0.0) or 0.0)
+            done = bool(step_result.get("done", False))
 
             rewards.append(reward)
             steps_taken = step
 
-            action_str = json.dumps(action, separators=(",", ":"))
+            error_msg = model_error
+            action_str = _safe_json_dumps(action)
             log_step(step=step, action=action_str, reward=reward, done=done, error=error_msg)
 
-            obs = step_data
+            history.append(
+                f"step={step} reward={reward:.2f} done={str(done).lower()} feedback={observation.get('feedback', '')}"
+            )
+
             if done:
-                success = reward > 0.0001 or (len(rewards) > 0 and sum(rewards) / len(rewards) >= 0.5)
                 break
 
-        if rewards:
-            weighted_score = sum(rewards) / len (rewards)
-            severe_failures = sum(1 for r in rewards if r < 0.15)
-            success = weighted_score >= 0.65 and severe_failures == 0
+        score = _clamp_score(sum(rewards) / len(rewards)) if rewards else 0.0
+        success = score >= SUCCESS_SCORE_THRESHOLD
 
     except Exception as exc:
-        error_msg = str(exc)
-        print(f"[DEBUG] Episode error: {exc}", file=sys.stderr)
-        success = False
-
+        if steps_taken == 0:
+            log_step(
+                step=1,
+                action="null",
+                reward=0.0,
+                done=True,
+                error=str(exc),
+            )
+            steps_taken = 1
+            rewards.append(0.0)
+            score = 0.0
+            success = False
     finally:
-        if session_id:
-            env_close(session_id)
-        log_end(success=success, steps=steps_taken, rewards=rewards)
-        
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+        close_session(session_id)
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
-def main() -> None:
-    
-    # Quick health check
-    try:
-        r = requests.get(f"{ENV_BASE_URL}/health", timeout=10)
-        r.raise_for_status()
-    except Exception as exc:
-        print(f"[ERROR] Cannot reach environment at {ENV_BASE_URL}: {exc}", file=sys.stderr)
-        sys.exit(1)
-
-    for task in TASKS:
-        run_task(task)
-        time.sleep(1)   # polite pause between tasks
 
 if __name__ == "__main__":
     main()
