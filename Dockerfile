@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENABLE_WEB_INTERFACE=true
 
-WORKDIR /app
+WORKDIR /app/env
 
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
