@@ -45,9 +45,9 @@ tasks:
       suggested_response_tone: "formal | friendly | empathetic | concise"
       tags: "list of strings (0-5)"
       task_id: easy_triage
-    grader: graders:grade_easy_triage
+    grader: server.graders:grade_easy_triage
     graders:
-      - graders:grade_easy_triage
+      - server.graders:grade_easy_triage
     reward_range: [0.0, 1.0]
 
   - id: medium_triage
@@ -68,9 +68,9 @@ tasks:
       suggested_response_tone: "formal | friendly | empathetic | concise"
       tags: "list of strings (0-5)"
       task_id: medium_triage
-    grader: graders:grade_medium_triage
+    grader: server.graders:grade_medium_triage
     graders:
-      - graders:grade_medium_triage
+      - server.graders:grade_medium_triage
     reward_range: [0.0, 1.0]
 
   - id: hard_triage
@@ -91,7 +91,7 @@ tasks:
       suggested_response_tone: "formal | friendly | empathetic | concise"
       tags: "list of strings (0-5)"
       task_id: hard_triage
-    grader: graders:grade_hard_triage
+    grader: server.graders:grade_hard_triage
     graders:
-      - graders:grade_hard_triage
+      - server.graders:grade_hard_triage
     reward_range: [0.0, 1.0]

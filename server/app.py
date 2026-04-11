@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from email_triage_env.models import TriageAction, EmailObservation, TriageState
 from server.environment import EmailTriageEnvironment
 from email_triage_env.email_data import TASK_EMAIL_MAP
-from graders import GRADERS
+from server.graders import GRADERS
 
 app = FastAPI(
     title="Email Triage Environment",
@@ -116,9 +116,9 @@ def list_tasks():
         "hard_triage": "hard",
     }
     grader_map = {
-        "easy_triage": "graders:grade_easy_triage",
-        "medium_triage": "graders:grade_medium_triage",
-        "hard_triage": "graders:grade_hard_triage",
+        "easy_triage": "server.graders:grade_easy_triage",
+        "medium_triage": "server.graders:grade_medium_triage",
+        "hard_triage": "server.graders:grade_hard_triage",
     }
 
     return {

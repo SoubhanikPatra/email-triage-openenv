@@ -27,7 +27,6 @@ GRADERS = {
     "hard_triage": grade_hard_triage,
 }
 
-
 TASK_GRADER_PAIRS = [
     ("easy_triage", grade_easy_triage),
     ("medium_triage", grade_medium_triage),
