@@ -1,9 +1,21 @@
 from server.graders import (
-    grade_easy_triage,
-    grade_medium_triage,
-    grade_hard_triage,
+    EasyGrader,
+    MediumGrader,
+    HardGrader,
     GRADERS,
 )
+
+
+def grade_easy_triage(state: dict, reward: float) -> float:
+    return EasyGrader().grade(state, reward)
+
+
+def grade_medium_triage(state: dict, reward: float) -> float:
+    return MediumGrader().grade(state, reward)
+
+
+def grade_hard_triage(state: dict, reward: float) -> float:
+    return HardGrader().grade(state, reward)
 
 TASK_GRADER_PAIRS = [
     ("easy_triage", grade_easy_triage),

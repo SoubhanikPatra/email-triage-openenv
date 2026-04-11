@@ -131,6 +131,7 @@ def list_tasks():
                 "difficulty": difficulties.get(task_name, "unknown"),
                 "email_count": len(emails),
                 "grader": grader_map[task_name],
+                "graders": [grader_map[task_name]],
                 "max_reward": 1.0,
                 "reset_params": {"task_name": task_name},
                 "max_steps": 5,

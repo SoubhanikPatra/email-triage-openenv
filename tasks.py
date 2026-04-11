@@ -3,29 +3,29 @@ TASKS = [
         "id": "easy_triage",
         "task_id": "easy_triage",
         "name": "easy_triage",
-        "grader": "server.graders:grade_easy_triage",
-        "graders": ["server.graders:grade_easy_triage"],
+        "grader": "server.graders:EasyGrader",
+        "graders": ["server.graders:EasyGrader"],
     },
     {
         "id": "medium_triage",
         "task_id": "medium_triage",
         "name": "medium_triage",
-        "grader": "server.graders:grade_medium_triage",
-        "graders": ["server.graders:grade_medium_triage"],
+        "grader": "server.graders:MediumGrader",
+        "graders": ["server.graders:MediumGrader"],
     },
     {
         "id": "hard_triage",
         "task_id": "hard_triage",
         "name": "hard_triage",
-        "grader": "server.graders:grade_hard_triage",
-        "graders": ["server.graders:grade_hard_triage"],
+        "grader": "server.graders:HardGrader",
+        "graders": ["server.graders:HardGrader"],
     },
 ]
 
 TASK_GRADER_PAIRS = [
-    ("easy_triage", "server.graders:grade_easy_triage"),
-    ("medium_triage", "server.graders:grade_medium_triage"),
-    ("hard_triage", "server.graders:grade_hard_triage"),
+    ("easy_triage", "server.graders:EasyGrader"),
+    ("medium_triage", "server.graders:MediumGrader"),
+    ("hard_triage", "server.graders:HardGrader"),
 ]
 
 __all__ = ["TASKS", "TASK_GRADER_PAIRS"]

@@ -5,7 +5,64 @@ runtime: fastapi
 app: server.app:app
 port: 7860
 version: 1.0.0
+description: >
+  OpenEnv-compatible environment for evaluating AI email triage decisions
+  across easy, medium, and hard support inbox scenarios.
 entry_point: server.environment:EmailTriageEnvironment
+environment:
+  class: server.environment.EmailTriageEnvironment
+  init_params: {}
+  methods:
+    reset:
+      description: Reset the environment for a selected task and return the initial observation.
+      params:
+        task_name:
+          type: string
+          enum: [easy_triage, medium_triage, hard_triage]
+      returns: observation
+    step:
+      description: Submit a triage action and return (observation, reward, done).
+      params:
+        action:
+          type: object
+      returns: [observation, reward, done]
+    state:
+      description: Return current environment state metadata.
+      returns: state
+
+actions:
+  - name: triage_email
+    description: Submit a structured triage decision for the current email.
+
+observations:
+  type: object
+  properties:
+    email_id:
+      type: string
+    subject:
+      type: string
+    body:
+      type: string
+    sender_email:
+      type: string
+    sender_name:
+      type: string
+    task_name:
+      type: string
+    reward:
+      type: number
+    done:
+      type: boolean
+
+rewards:
+  type: partial
+  total: 1.0
+  description: Composite triage scoring with deterministic grading and shaping.
+
+agent:
+  class: server.environment.EmailTriageEnvironment
+  deterministic: true
+  description: Stateless evaluation agent consuming task-specific email streams.
 
 api:
   base_url: /
@@ -46,6 +103,8 @@ tasks:
       tags: "list of strings (0-5)"
       task_id: easy_triage
     grader: server.graders:EasyGrader
+    graders:
+      - server.graders:EasyGrader
     max_reward: 1.0
 
   - id: medium_triage
@@ -67,6 +126,8 @@ tasks:
       tags: "list of strings (0-5)"
       task_id: medium_triage
     grader: server.graders:MediumGrader
+    graders:
+      - server.graders:MediumGrader
     max_reward: 1.0
 
   - id: hard_triage
@@ -88,4 +149,6 @@ tasks:
       tags: "list of strings (0-5)"
       task_id: hard_triage
     grader: server.graders:HardGrader
+    graders:
+      - server.graders:HardGrader
     max_reward: 1.0
