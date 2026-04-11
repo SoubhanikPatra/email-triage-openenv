@@ -116,9 +116,9 @@ def list_tasks():
         "hard_triage": "hard",
     }
     grader_map = {
-        "easy_triage": "server.graders:grade_easy_triage",
-        "medium_triage": "server.graders:grade_medium_triage",
-        "hard_triage": "server.graders:grade_hard_triage",
+        "easy_triage": "server.graders:EasyGrader",
+        "medium_triage": "server.graders:MediumGrader",
+        "hard_triage": "server.graders:HardGrader",
     }
 
     return {

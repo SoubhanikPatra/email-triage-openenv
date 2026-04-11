@@ -9,26 +9,48 @@ def _grade_task(task_name: str, state: dict, reward: float) -> float:
     return _normalize_reward(reward)
 
 
-def grade_easy_triage(state: dict, reward: float) -> float:
-    return _grade_task("easy_triage", state, reward)
+def _extract_state_reward(*args, **kwargs):
+    state = kwargs.get("state")
+    reward = kwargs.get("reward", 0.0)
+    
+    if len(args) == 2:
+        state, reward = args[0], args[1]
+    elif len(args) == 1:
+        if isinstance(args[0], dict):
+            state = args[0]
+        elif hasattr(args[0], "state"):
+            state = args[0].state
+            
+    if state is None:
+        state = {}
+        
+    return state, float(reward)
 
 
-def grade_medium_triage(state: dict, reward: float) -> float:
-    return _grade_task("medium_triage", state, reward)
+class EasyGrader:
+    def grade(self, *args, **kwargs) -> float:
+        state, reward = _extract_state_reward(*args, **kwargs)
+        return _grade_task("easy_triage", state, reward)
 
+class MediumGrader:
+    def grade(self, *args, **kwargs) -> float:
+        state, reward = _extract_state_reward(*args, **kwargs)
+        return _grade_task("medium_triage", state, reward)
 
-def grade_hard_triage(state: dict, reward: float) -> float:
-    return _grade_task("hard_triage", state, reward)
+class HardGrader:
+    def grade(self, *args, **kwargs) -> float:
+        state, reward = _extract_state_reward(*args, **kwargs)
+        return _grade_task("hard_triage", state, reward)
 
 
 GRADERS = {
-    "easy_triage": grade_easy_triage,
-    "medium_triage": grade_medium_triage,
-    "hard_triage": grade_hard_triage,
+    "easy_triage": EasyGrader().grade,
+    "medium_triage": MediumGrader().grade,
+    "hard_triage": HardGrader().grade,
 }
 
 TASK_GRADER_PAIRS = [
-    ("easy_triage", grade_easy_triage),
-    ("medium_triage", grade_medium_triage),
-    ("hard_triage", grade_hard_triage),
+    ("easy_triage", EasyGrader().grade),
+    ("medium_triage", MediumGrader().grade),
+    ("hard_triage", HardGrader().grade),
 ]
