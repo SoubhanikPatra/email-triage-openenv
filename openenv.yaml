@@ -46,7 +46,7 @@ tasks:
       tags: "list of strings (0-5)"
       task_id: easy_triage
     grader: server.graders:EasyGrader
-    reward_range: [0.0, 1.0]
+    max_reward: 1.0
 
   - id: medium_triage
     task_id: medium_triage
@@ -67,7 +67,7 @@ tasks:
       tags: "list of strings (0-5)"
       task_id: medium_triage
     grader: server.graders:MediumGrader
-    reward_range: [0.0, 1.0]
+    max_reward: 1.0
 
   - id: hard_triage
     task_id: hard_triage
@@ -88,4 +88,4 @@ tasks:
       tags: "list of strings (0-5)"
       task_id: hard_triage
     grader: server.graders:HardGrader
-    reward_range: [0.0, 1.0]
+    max_reward: 1.0
