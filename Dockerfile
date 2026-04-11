@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source
 COPY email_triage_env/ ./email_triage_env/
 COPY server/ ./server/
+COPY graders.py tasks.py openenv.yaml ./
 
 ENV ENABLE_WEB_INTERFACE=true
 
