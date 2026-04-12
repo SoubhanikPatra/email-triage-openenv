@@ -215,14 +215,19 @@ def close_session(session_id: Optional[str]) -> None:
 def wait_for_env(url: str, timeout: int = 60) -> bool:
     """Wait for the environment to be ready."""
     start = time.time()
+    last_error = None
     while time.time() - start < timeout:
         try:
             resp = requests.get(f"{url}/health", timeout=5)
             if resp.status_code == 200:
                 return True
-        except:
-            pass
+            last_error = f"Status code: {resp.status_code}"
+        except Exception as exc:
+            last_error = str(exc)
         time.sleep(2)
+
+    if last_error:
+        print(f"[ERROR] Environment health check failed: {last_error}", file=sys.stderr, flush=True)
     return False
 
 
@@ -238,14 +243,24 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
     log_start(task=_display_task_name(task_name), env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        session_id, observation = reset_env(task_name)
+        try:
+            session_id, observation = reset_env(task_name)
+        except Exception as exc:
+            print(f"[ERROR] Failed to reset environment for task {task_name}: {exc}", file=sys.stderr, flush=True)
+            raise
 
         for step in range(1, MAX_STEPS + 1):
             if observation.get("done", False):
                 break
 
             action, model_error = get_model_action(client, step, observation, history)
-            step_result = step_env(session_id, action)
+
+            try:
+                step_result = step_env(session_id, action)
+            except Exception as exc:
+                print(f"[ERROR] Failed to step environment at step {step}: {exc}", file=sys.stderr, flush=True)
+                raise
+
             observation = step_result.get("observation", {})
 
             reward = float(step_result.get("reward", 0.0) or 0.0)
@@ -268,6 +283,7 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
         success = bool(rewards and rewards[-1] >= SUCCESS_SCORE_THRESHOLD)
 
     except Exception as exc:
+        print(f"[ERROR] Exception in task {task_name}: {exc}", file=sys.stderr, flush=True)
         if steps_taken == 0:
             log_step(
                 step=1,
@@ -290,22 +306,49 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
 def main() -> None:
     """Run inference for ALL tasks defined in openenv.yaml."""
     try:
-        if not wait_for_env(ENV_BASE_URL):
+        # Validate required environment variables
+        if not HF_TOKEN or HF_TOKEN == "dummy-key":
+            print("[ERROR] Missing required API key. Set HF_TOKEN or OPENAI_API_KEY environment variable.", file=sys.stderr, flush=True)
             sys.exit(1)
 
-        client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+        print(f"[INFO] Using API: {API_BASE_URL}", flush=True)
+        print(f"[INFO] Using Model: {MODEL_NAME}", flush=True)
+        print(f"[INFO] Environment URL: {ENV_BASE_URL}", flush=True)
+
+        # Wait for environment to be ready
+        print(f"[INFO] Waiting for environment to be ready...", flush=True)
+        if not wait_for_env(ENV_BASE_URL):
+            print(f"[ERROR] Environment at {ENV_BASE_URL} did not become ready within timeout.", file=sys.stderr, flush=True)
+            sys.exit(1)
+
+        print(f"[INFO] Environment is ready.", flush=True)
+
+        # Initialize OpenAI client
+        try:
+            client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+        except Exception as exc:
+            print(f"[ERROR] Failed to initialize OpenAI client: {exc}", file=sys.stderr, flush=True)
+            sys.exit(1)
 
         overall_success = True
 
         for task_name in ALL_TASKS:
-            success, steps, score, rewards = run_single_task(client, task_name)
-            if not success:
+            print(f"[INFO] Running task: {task_name}", flush=True)
+            try:
+                success, steps, score, rewards = run_single_task(client, task_name)
+                if not success:
+                    overall_success = False
+            except Exception as exc:
+                print(f"[ERROR] Task {task_name} failed with exception: {exc}", file=sys.stderr, flush=True)
                 overall_success = False
 
         sys.exit(0 if overall_success else 1)
     except SystemExit:
         raise
     except Exception as exc:
+        print(f"[ERROR] Unhandled exception in main: {exc}", file=sys.stderr, flush=True)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
 
