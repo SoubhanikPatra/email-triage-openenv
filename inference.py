@@ -13,7 +13,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or "dummy-key"
+HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or "dummy-key"
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 
@@ -296,7 +296,7 @@ def main() -> None:
             print(f"[ERROR] Environment not reachable at {ENV_BASE_URL}", flush=True)
             sys.exit(1)
 
-        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+        client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
         
         all_results = {}
         overall_success = True
