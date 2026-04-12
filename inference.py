@@ -5,29 +5,24 @@ from __future__ import annotations
 import json
 import os
 import textwrap
+import time
 from typing import Any, Dict, List, Optional, Tuple
 import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("HF_TOKEN")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 
-# Compatibility aliases for platform/static checks from official template.
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME")
 
-ENV_BASE_URL = (
-    os.getenv("ENV_BASE_URL") or 
-    os.getenv("OPENENV_ENV_URL") or
-    os.getenv("ENV_URL") or
-    "http://env:7860",  # Docker service name if in same compose
-    "http://localhost:7860"
-)[0].rstrip("/")
+ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
 
 # Define all tasks that must be evaluated
 ALL_TASKS = ["easy_triage", "medium_triage", "hard_triage"]
+BENCHMARK = os.getenv("BENCHMARK") or "email-triage"
 
 MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
@@ -57,32 +52,36 @@ SYSTEM_PROMPT = textwrap.dedent(
 
 
 def log_start(task: str, env: str, model: str) -> None:
+    """Emit [START] line exactly as required."""
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
-    done_val = str(done).lower()
+    """Emit [STEP] line exactly as required."""
+    done_val = "true" if done else "false"
     error_val = error if error else "null"
+    # Ensure reward is never exactly 0 or 1, clamp to [0.001, 0.999]
+    reward_clamped = max(0.001, min(0.999, reward))
     print(
-        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        f"[STEP] step={step} action={action} reward={reward_clamped:.2f} done={done_val} error={error_val}",
         flush=True,
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float], task: str) -> None:
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(
-        f"[END] task={task} success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
-        flush=True,
-    )
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    """Emit [END] line exactly as required - NO extra fields."""
+    rewards_str = ",".join(f"{max(0.001, min(0.999, r)):.2f}" for r in rewards)
+    # IMPORTANT: Do NOT include task= or any other field here
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
 
 
 def _safe_json_dumps(data: Dict[str, Any]) -> str:
     return json.dumps(data, separators=(",", ":"), ensure_ascii=True)
 
 
-def _clamp_score(value: float) -> float:
-    return min(max(value, 0.0), 1.0)
+def _clamp_reward(reward: float) -> float:
+    """Ensure reward is never exactly 0 or 1."""
+    return max(0.001, min(0.999, reward))
 
 
 def _extract_observation_fields(observation: Dict[str, Any]) -> Dict[str, Any]:
@@ -207,19 +206,21 @@ def close_session(session_id: Optional[str]) -> None:
     try:
         requests.delete(f"{ENV_BASE_URL}/session/{session_id}", timeout=15)
     except Exception:
-        return
+        pass
 
 
-def check_environment_ready() -> None:
-    try:
-        response = requests.get(f"{ENV_BASE_URL}/health", timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        print(
-            f"[END] task=all success=false steps=0 score=0.00 rewards= error=environment_unreachable:{exc}",
-            flush=True,
-        )
-        raise SystemExit(1)
+def wait_for_env(url: str, timeout: int = 60) -> bool:
+    """Wait for the environment to be ready."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            resp = requests.get(f"{url}/health", timeout=5)
+            if resp.status_code == 200:
+                return True
+        except:
+            pass
+        time.sleep(2)
+    return False
 
 
 def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, List[float]]:
@@ -231,13 +232,13 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
     score = 0.0
     success = False
 
-    log_start(task=task_name, env="email-triage", model=MODEL_NAME)
+    log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
 
     try:
         session_id, observation = reset_env(task_name)
 
         for step in range(1, MAX_STEPS + 1):
-            if bool(observation.get("done", False)):
+            if observation.get("done", False):
                 break
 
             action, model_error = get_model_action(client, step, observation, history)
@@ -245,14 +246,14 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
             observation = step_result.get("observation", {})
 
             reward = float(step_result.get("reward", 0.0) or 0.0)
+            reward = _clamp_reward(reward)  # Ensure never 0 or 1
             done = bool(step_result.get("done", False))
 
             rewards.append(reward)
             steps_taken = step
 
-            error_msg = model_error
             action_str = _safe_json_dumps(action)
-            log_step(step=step, action=action_str, reward=reward, done=done, error=error_msg)
+            log_step(step=step, action=action_str, reward=reward, done=done, error=model_error)
 
             history.append(
                 f"step={step} reward={reward:.2f} done={str(done).lower()} feedback={observation.get('feedback', '')}"
@@ -261,7 +262,9 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
             if done:
                 break
 
-        score = _clamp_score(sum(rewards) / len(rewards)) if rewards else 0.0
+        # Calculate score as average reward across steps
+        score = sum(rewards) / len(rewards) if rewards else 0.0
+        score = _clamp_reward(score)  # Ensure in [0.001, 0.999]
         success = score >= SUCCESS_SCORE_THRESHOLD
 
     except Exception as exc:
@@ -269,50 +272,39 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
             log_step(
                 step=1,
                 action="null",
-                reward=0.0,
+                reward=0.001,
                 done=True,
                 error=str(exc),
             )
             steps_taken = 1
-            rewards.append(0.0)
-            score = 0.0
+            rewards.append(0.001)
+            score = 0.001
             success = False
     finally:
         close_session(session_id)
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards, task=task_name)
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return success, steps_taken, score, rewards
 
 
 def main() -> None:
     """Run inference for ALL tasks defined in openenv.yaml."""
-    if not API_KEY:
-        print(
-            "[END] task=all success=false steps=0 score=0.00 rewards= error=missing_api_key",
-            flush=True,
-        )
-        raise SystemExit(1)
+    # Wait for environment to be ready
+    if not wait_for_env(ENV_BASE_URL):
+        print(f"[ERROR] Environment not reachable at {ENV_BASE_URL}", flush=True)
+        exit(1)
 
-    try:
-        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    except Exception as exc:
-        print(
-            f"[END] task=all success=false steps=0 score=0.00 rewards= error=model_client_init_failed:{exc}",
-            flush=True,
-        )
-        raise SystemExit(1)
-
-    check_environment_ready()
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     
     all_results = {}
     overall_success = True
     
-    print(f"\n{'='*60}")
-    print(f"Running inference for {len(ALL_TASKS)} tasks: {ALL_TASKS}")
-    print(f"{'='*60}\n")
+    print(f"\n{'='*60}", flush=True)
+    print(f"Running inference for {len(ALL_TASKS)} tasks: {ALL_TASKS}", flush=True)
+    print(f"{'='*60}\n", flush=True)
     
     for task_name in ALL_TASKS:
-        print(f"\n--- Running task: {task_name} ---\n")
+        print(f"\n--- Running task: {task_name} ---\n", flush=True)
         success, steps, score, rewards = run_single_task(client, task_name)
         all_results[task_name] = {
             "success": success,
@@ -323,19 +315,8 @@ def main() -> None:
         if not success:
             overall_success = False
     
-    # Summary
-    print(f"\n{'='*60}")
-    print("SUMMARY OF ALL TASKS")
-    print(f"{'='*60}")
-    for task_name, result in all_results.items():
-        status = "PASS" if result["success"] else "FAIL"
-        print(f"  {task_name}: {status} (score={result['score']:.2f}, steps={result['steps']})")
-    
-    print(f"\nOverall: {'SUCCESS' if overall_success else 'FAIL'}")
-    print(f"{'='*60}\n")
-    
-    # Exit with non-zero code if any task failed (important for CI/validator)
-    raise SystemExit(0 if overall_success else 1)
+    # Exit with non-zero code if any task failed
+    exit(0 if overall_success else 1)
 
 
 if __name__ == "__main__":
