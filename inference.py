@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import textwrap
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -12,7 +13,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or "dummy-key"
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 
@@ -289,34 +290,40 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
 
 def main() -> None:
     """Run inference for ALL tasks defined in openenv.yaml."""
-    # Wait for environment to be ready
-    if not wait_for_env(ENV_BASE_URL):
-        print(f"[ERROR] Environment not reachable at {ENV_BASE_URL}", flush=True)
-        exit(1)
+    try:
+        # Wait for environment to be ready
+        if not wait_for_env(ENV_BASE_URL):
+            print(f"[ERROR] Environment not reachable at {ENV_BASE_URL}", flush=True)
+            sys.exit(1)
 
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    
-    all_results = {}
-    overall_success = True
-    
-    print(f"\n{'='*60}", flush=True)
-    print(f"Running inference for {len(ALL_TASKS)} tasks: {ALL_TASKS}", flush=True)
-    print(f"{'='*60}\n", flush=True)
-    
-    for task_name in ALL_TASKS:
-        print(f"\n--- Running task: {task_name} ---\n", flush=True)
-        success, steps, score, rewards = run_single_task(client, task_name)
-        all_results[task_name] = {
-            "success": success,
-            "steps": steps,
-            "score": score,
-            "rewards": rewards,
-        }
-        if not success:
-            overall_success = False
-    
-    # Exit with non-zero code if any task failed
-    exit(0 if overall_success else 1)
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+        
+        all_results = {}
+        overall_success = True
+        
+        print(f"\n{'='*60}", flush=True)
+        print(f"Running inference for {len(ALL_TASKS)} tasks: {ALL_TASKS}", flush=True)
+        print(f"{'='*60}\n", flush=True)
+        
+        for task_name in ALL_TASKS:
+            print(f"\n--- Running task: {task_name} ---\n", flush=True)
+            success, steps, score, rewards = run_single_task(client, task_name)
+            all_results[task_name] = {
+                "success": success,
+                "steps": steps,
+                "score": score,
+                "rewards": rewards,
+            }
+            if not success:
+                overall_success = False
+        
+        # Exit with non-zero code if any task failed
+        sys.exit(0 if overall_success else 1)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"[ERROR] Unhandled exception in main: {exc}", flush=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
