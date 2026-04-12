@@ -60,8 +60,8 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     """Emit [STEP] line exactly as required."""
     done_val = "true" if done else "false"
     error_val = error if error else "null"
-    # Ensure reward is never exactly 0 or 1, clamp to [0.001, 0.999]
-    reward_clamped = max(0.001, min(0.999, reward))
+    # Ensure reward is never exactly 0 or 1, clamp to [0.01, 0.99]
+    reward_clamped = max(0.01, min(0.99, reward))
     print(
         f"[STEP] step={step} action={action} reward={reward_clamped:.2f} done={done_val} error={error_val}",
         flush=True,
@@ -70,7 +70,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     """Emit [END] line exactly as required - NO extra fields."""
-    rewards_str = ",".join(f"{max(0.001, min(0.999, r)):.2f}" for r in rewards)
+    rewards_str = ",".join(f"{max(0.01, min(0.99, r)):.2f}" for r in rewards)
     # IMPORTANT: Do NOT include task= or any other field here
     print(f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}", flush=True)
 
@@ -81,7 +81,7 @@ def _safe_json_dumps(data: Dict[str, Any]) -> str:
 
 def _clamp_reward(reward: float) -> float:
     """Ensure reward is never exactly 0 or 1."""
-    return max(0.001, min(0.999, reward))
+    return max(0.01, min(0.99, reward))
 
 
 def _extract_observation_fields(observation: Dict[str, Any]) -> Dict[str, Any]:
@@ -264,7 +264,7 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
 
         # Calculate score as average reward across steps
         score = sum(rewards) / len(rewards) if rewards else 0.0
-        score = _clamp_reward(score)  # Ensure in [0.001, 0.999]
+        score = _clamp_reward(score)  # Ensure in [0.01, 0.99]
         success = score >= SUCCESS_SCORE_THRESHOLD
 
     except Exception as exc:
@@ -272,13 +272,13 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
             log_step(
                 step=1,
                 action="null",
-                reward=0.001,
+                reward=0.01,
                 done=True,
                 error=str(exc),
             )
             steps_taken = 1
-            rewards.append(0.001)
-            score = 0.001
+            rewards.append(0.01)
+            score = 0.01
             success = False
     finally:
         close_session(session_id)

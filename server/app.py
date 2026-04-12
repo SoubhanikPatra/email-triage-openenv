@@ -170,7 +170,7 @@ def step(req: StepRequest) -> StepResponse:
     return StepResponse(
         session_id=sid,
         observation=obs,
-        reward=obs.reward if obs.reward is not None else 0.0001,
+        reward=obs.reward if obs.reward is not None else 0.01,
         done=obs.done,
     )
 
@@ -203,7 +203,7 @@ def grader_endpoint(req: GraderRequest) -> GraderResponse:
 
     grader_instance = grader_class()
     score = grader_instance.grade(req.state, reward=req.reward)
-    score = max(0.001, min(0.999, round(float(score), 3)))
+    score = max(0.01, min(0.99, round(float(score), 2)))
 
     return GraderResponse(task_id=req.task_id, score=score)
 

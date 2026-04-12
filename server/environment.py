@@ -71,7 +71,7 @@ class EmailTriageEnvironment:
     def step(self, action: TriageAction, **kwargs: Any) -> EmailObservation:
         if self._done or self._cursor >= len(self._emails):
             return self._make_observation(
-                reward=0.001,
+                reward=0.01,
                 done=True,
                 feedback="Episode already finished.",
                 score_breakdown={},
@@ -86,13 +86,13 @@ class EmailTriageEnvironment:
         # Reward shaping: emphasize operationally important decisions
         # ------------------------------------------------------------------
         # Routing matters a lot in real inbox triage
-        if breakdown.get("routing", 0.0) >= 0.999:
+        if breakdown.get("routing", 0.0) >= 0.99:
             reward += 0.10
         # Priority matters too
-        if breakdown.get("priority", 0.0) >= 0.999:
+        if breakdown.get("priority", 0.0) >= 0.99:
             reward += 0.05
         # Follow-up correctness matters for enterprise/churn/legal cases
-        if breakdown.get("followup", 0.0) >= 0.999:
+        if breakdown.get("followup", 0.0) >= 0.99:
             reward += 0.05
         # Hard-task escalation/compliance sensitivity
         if email.get("difficulty") == "hard":
@@ -132,7 +132,7 @@ class EmailTriageEnvironment:
         if len(summary.split()) < 3:
             reward -= 0.05
         # Clip into valid range with proper bounds to avoid 0.0 and 1.0
-        reward = max(0.001, min(0.999, round(reward, 3)))
+        reward = max(0.01, min(0.99, round(reward, 2)))
 
         self._state.step_count += 1
         self._state.cumulative_reward += reward
