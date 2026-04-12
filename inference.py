@@ -18,7 +18,13 @@ MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 # Compatibility aliases for platform/static checks from official template.
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME")
 
-ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
+ENV_BASE_URL = (
+    os.getenv("ENV_BASE_URL") or 
+    os.getenv("OPENENV_ENV_URL") or
+    os.getenv("ENV_URL") or
+    "http://env:7860",  # Docker service name if in same compose
+    "http://localhost:7860"
+)[0].rstrip("/")
 
 # Define all tasks that must be evaluated
 ALL_TASKS = ["easy_triage", "medium_triage", "hard_triage"]
