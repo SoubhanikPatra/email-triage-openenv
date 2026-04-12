@@ -13,23 +13,34 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
+# HF_TOKEN = os.getenv("HF_TOKEN")
+# API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+# MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
+
+# LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME")
+
+# ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
+
+# # Define all tasks that must be evaluated
+# ALL_TASKS = ["easy_triage", "medium_triage", "hard_triage"]
+# BENCHMARK = os.getenv("BENCHMARK") or "email-triage"
+
+# MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
+# TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
+# MAX_TOKENS = int(os.getenv("MAX_TOKENS", "350"))
+# SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.70"))
+
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
-
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME")
-
-ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
-
-# Define all tasks that must be evaluated
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
 ALL_TASKS = ["easy_triage", "medium_triage", "hard_triage"]
-BENCHMARK = os.getenv("BENCHMARK") or "email-triage"
-
+BENCHMARK = "email-triage"
 MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "350"))
 SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.70"))
-
 SYSTEM_PROMPT = textwrap.dedent(
     """
     You are an expert B2B SaaS support triage agent.
@@ -306,6 +317,7 @@ def main() -> None:
     except SystemExit:
         raise
     except Exception as exc:
+        print(f"Fatal error: {exc}", file=sys.stderr)
         sys.exit(1)
 
 
