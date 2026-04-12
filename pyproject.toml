@@ -23,4 +23,3 @@ server = "server.app:main"
 
 [tool.setuptools]
 packages = ["email_triage_env", "server"]
-py-modules = ["graders", "tasks"]

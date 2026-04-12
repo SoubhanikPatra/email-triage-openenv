@@ -22,8 +22,6 @@ COPY server/ ./server/
 
 # Copy root-level OpenEnv / validator discovery files
 COPY openenv.yaml ./
-COPY graders.py ./
-COPY tasks.py ./
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
