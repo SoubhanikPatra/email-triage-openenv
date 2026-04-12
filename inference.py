@@ -19,12 +19,9 @@ MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("IMAGE_NAME")
 
 ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
-TASK_NAME = (
-    os.getenv("TASK_NAME")
-    or os.getenv("EMAIL_TRIAGE_TASK")
-    or "easy_triage"
-)
-BENCHMARK = os.getenv("BENCHMARK") or "email-triage"
+
+# Define all tasks that must be evaluated
+ALL_TASKS = ["easy_triage", "medium_triage", "hard_triage"]
 
 MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
@@ -66,10 +63,10 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, score: float, rewards: List[float], task: str) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        f"[END] task={task} success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -207,20 +204,19 @@ def close_session(session_id: Optional[str]) -> None:
         return
 
 
-def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, List[float]]:
+    """Run inference for a single task and return results."""
     session_id: Optional[str] = None
-
     rewards: List[float] = []
     history: List[str] = []
     steps_taken = 0
     score = 0.0
     success = False
 
-    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
+    log_start(task=task_name, env="email-triage", model=MODEL_NAME)
 
     try:
-        session_id, observation = reset_env(TASK_NAME)
+        session_id, observation = reset_env(task_name)
 
         for step in range(1, MAX_STEPS + 1):
             if bool(observation.get("done", False)):
@@ -265,7 +261,47 @@ def main() -> None:
             success = False
     finally:
         close_session(session_id)
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards, task=task_name)
+
+    return success, steps_taken, score, rewards
+
+
+def main() -> None:
+    """Run inference for ALL tasks defined in openenv.yaml."""
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    
+    all_results = {}
+    overall_success = True
+    
+    print(f"\n{'='*60}")
+    print(f"Running inference for {len(ALL_TASKS)} tasks: {ALL_TASKS}")
+    print(f"{'='*60}\n")
+    
+    for task_name in ALL_TASKS:
+        print(f"\n--- Running task: {task_name} ---\n")
+        success, steps, score, rewards = run_single_task(client, task_name)
+        all_results[task_name] = {
+            "success": success,
+            "steps": steps,
+            "score": score,
+            "rewards": rewards,
+        }
+        if not success:
+            overall_success = False
+    
+    # Summary
+    print(f"\n{'='*60}")
+    print("SUMMARY OF ALL TASKS")
+    print(f"{'='*60}")
+    for task_name, result in all_results.items():
+        status = "PASS" if result["success"] else "FAIL"
+        print(f"  {task_name}: {status} (score={result['score']:.2f}, steps={result['steps']})")
+    
+    print(f"\nOverall: {'SUCCESS' if overall_success else 'FAIL'}")
+    print(f"{'='*60}\n")
+    
+    # Exit with non-zero code if any task failed (important for CI/validator)
+    exit(0 if overall_success else 1)
 
 
 if __name__ == "__main__":
