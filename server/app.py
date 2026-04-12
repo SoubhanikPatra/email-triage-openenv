@@ -116,9 +116,9 @@ def list_tasks():
         "hard_triage": "hard",
     }
     grader_map = {
-        "easy_triage": "server.graders:grade_easy_triage",
-        "medium_triage": "server.graders:grade_medium_triage",
-        "hard_triage": "server.graders:grade_hard_triage",
+        "easy_triage": "server.graders:EasyTriageGrader",
+        "medium_triage": "server.graders:MediumTriageGrader",
+        "hard_triage": "server.graders:HardTriageGrader",
     }
 
     return {
@@ -194,14 +194,15 @@ def close_session(session_id: str) -> Dict[str, str]:
 
 @app.post("/grader", response_model=GraderResponse)
 def grader_endpoint(req: GraderRequest) -> GraderResponse:
-    grader_fn = GRADERS.get(req.task_id)
-    if grader_fn is None:
+    grader_class = GRADERS.get(req.task_id)
+    if grader_class is None:
         raise HTTPException(
             status_code=404,
             detail=f"No grader found for task_id={req.task_id}",
         )
 
-    score = grader_fn(req.state, req.reward)
+    grader_instance = grader_class()
+    score = grader_instance.grade(req.state, reward=req.reward)
     score = max(0.001, min(0.999, round(float(score), 3)))
 
     return GraderResponse(task_id=req.task_id, score=score)

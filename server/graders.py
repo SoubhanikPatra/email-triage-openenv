@@ -1,86 +1,82 @@
 """
 Email Triage Environment — Graders for OpenEnv validator
-Each grader must have signature (state, reward) -> float
+Each grader must have signature (env, *args, **kwargs) -> float
 """
 
 from typing import Dict, Any
 
+class EasyTriageGrader:
+    def grade(self, env: Any = None, *args: Any, **kwargs: Any) -> float:
+        score = kwargs.get("reward", None)
+        if score is None and isinstance(env, dict):
+            score = env.get("reward", 0.01)
+        elif score is None and hasattr(env, "reward"):
+            score = getattr(env, "reward", 0.01)
+        elif score is None and len(args) > 0 and isinstance(args[0], (int, float)):
+            score = args[0]
+        elif score is None:
+            score = 0.01
 
-def _normalize_reward(reward: float) -> float:
-    """Clamp reward to valid OpenEnv range [0.001, 0.999]"""
-    return max(0.001, min(0.999, round(float(reward), 3)))
-
-
-def grade_easy_triage(state: Dict[str, Any], reward: float) -> float:
-    """
-    Grader for easy_triage task.
-    
-    Args:
-        state: Episode state dict (contains task_name, cumulative_reward, etc.)
-        reward: The reward returned from the last step
-    
-    Returns:
-        Normalized score between 0.001 and 0.999
-    """
-    # Verify we're grading the correct task
-    task_name = state.get("task_name") if isinstance(state, dict) else getattr(state, "task_name", None)
-    if task_name != "easy_triage":
-        return 0.001
-    return _normalize_reward(reward)
+        if score is None:
+            score = 0.01
+            
+        return max(0.01, min(0.99, float(score)))
 
 
-def grade_medium_triage(state: Dict[str, Any], reward: float) -> float:
-    """
-    Grader for medium_triage task.
-    
-    Args:
-        state: Episode state dict (contains task_name, cumulative_reward, etc.)
-        reward: The reward returned from the last step
-    
-    Returns:
-        Normalized score between 0.001 and 0.999
-    """
-    task_name = state.get("task_name") if isinstance(state, dict) else getattr(state, "task_name", None)
-    if task_name != "medium_triage":
-        return 0.001
-    return _normalize_reward(reward)
+class MediumTriageGrader:
+    def grade(self, env: Any = None, *args: Any, **kwargs: Any) -> float:
+        score = kwargs.get("reward", None)
+        if score is None and isinstance(env, dict):
+            score = env.get("reward", 0.01)
+        elif score is None and hasattr(env, "reward"):
+            score = getattr(env, "reward", 0.01)
+        elif score is None and len(args) > 0 and isinstance(args[0], (int, float)):
+            score = args[0]
+        elif score is None:
+            score = 0.01
+
+        if score is None:
+            score = 0.01
+            
+        return max(0.01, min(0.99, float(score)))
 
 
-def grade_hard_triage(state: Dict[str, Any], reward: float) -> float:
-    """
-    Grader for hard_triage task.
-    
-    Args:
-        state: Episode state dict (contains task_name, cumulative_reward, etc.)
-        reward: The reward returned from the last step
-    
-    Returns:
-        Normalized score between 0.001 and 0.999
-    """
-    task_name = state.get("task_name") if isinstance(state, dict) else getattr(state, "task_name", None)
-    if task_name != "hard_triage":
-        return 0.001
-    return _normalize_reward(reward)
+class HardTriageGrader:
+    def grade(self, env: Any = None, *args: Any, **kwargs: Any) -> float:
+        score = kwargs.get("reward", None)
+        if score is None and isinstance(env, dict):
+            score = env.get("reward", 0.01)
+        elif score is None and hasattr(env, "reward"):
+            score = getattr(env, "reward", 0.01)
+        elif score is None and len(args) > 0 and isinstance(args[0], (int, float)):
+            score = args[0]
+        elif score is None:
+            score = 0.01
+
+        if score is None:
+            score = 0.01
+            
+        return max(0.01, min(0.99, float(score)))
 
 
 # Required for OpenEnv discovery
 GRADERS = {
-    "easy_triage": grade_easy_triage,
-    "medium_triage": grade_medium_triage,
-    "hard_triage": grade_hard_triage,
+    "easy_triage": EasyTriageGrader,
+    "medium_triage": MediumTriageGrader,
+    "hard_triage": HardTriageGrader,
 }
 
 # Required for tasks.py compatibility (if validator looks for this)
 TASK_GRADER_PAIRS = [
-    ("easy_triage", grade_easy_triage),
-    ("medium_triage", grade_medium_triage),
-    ("hard_triage", grade_hard_triage),
+    ("easy_triage", EasyTriageGrader),
+    ("medium_triage", MediumTriageGrader),
+    ("hard_triage", HardTriageGrader),
 ]
 
 __all__ = [
-    "grade_easy_triage",
-    "grade_medium_triage", 
-    "grade_hard_triage",
+    "EasyTriageGrader",
+    "MediumTriageGrader", 
+    "HardTriageGrader",
     "GRADERS",
     "TASK_GRADER_PAIRS",
 ]
