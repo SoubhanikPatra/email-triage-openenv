@@ -43,14 +43,26 @@ class HardGrader:
         return _grade_task("hard_triage", state, reward)
 
 
+def grade_easy_triage(*args, **kwargs) -> float:
+    return EasyGrader().grade(*args, **kwargs)
+
+
+def grade_medium_triage(*args, **kwargs) -> float:
+    return MediumGrader().grade(*args, **kwargs)
+
+
+def grade_hard_triage(*args, **kwargs) -> float:
+    return HardGrader().grade(*args, **kwargs)
+
+
 GRADERS = {
-    "easy_triage": EasyGrader().grade,
-    "medium_triage": MediumGrader().grade,
-    "hard_triage": HardGrader().grade,
+    "easy_triage": grade_easy_triage,
+    "medium_triage": grade_medium_triage,
+    "hard_triage": grade_hard_triage,
 }
 
 TASK_GRADER_PAIRS = [
-    ("easy_triage", EasyGrader().grade),
-    ("medium_triage", MediumGrader().grade),
-    ("hard_triage", HardGrader().grade),
+    ("easy_triage", grade_easy_triage),
+    ("medium_triage", grade_medium_triage),
+    ("hard_triage", grade_hard_triage),
 ]
