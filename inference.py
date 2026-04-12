@@ -34,13 +34,26 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
+ENV_BASE_URL = (os.getenv("ENV_BASE_URL") or "http://localhost:7860").rstrip("/")
 ALL_TASKS = ["easy_triage", "medium_triage", "hard_triage"]
 BENCHMARK = "email-triage"
-MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
-TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
-MAX_TOKENS = int(os.getenv("MAX_TOKENS", "350"))
-SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.70"))
+
+def _safe_int(val: Any, default: int) -> int:
+    try:
+        return int(val) if val is not None else default
+    except Exception:
+        return default
+
+def _safe_float(val: Any, default: float) -> float:
+    try:
+        return float(val) if val is not None else default
+    except Exception:
+        return default
+
+MAX_STEPS = _safe_int(os.getenv("MAX_STEPS"), 5)
+TEMPERATURE = _safe_float(os.getenv("TEMPERATURE"), 0.2)
+MAX_TOKENS = _safe_int(os.getenv("MAX_TOKENS"), 350)
+SUCCESS_SCORE_THRESHOLD = _safe_float(os.getenv("SUCCESS_SCORE_THRESHOLD"), 0.70)
 SYSTEM_PROMPT = textwrap.dedent(
     """
     You are an expert B2B SaaS support triage agent.
@@ -295,18 +308,17 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
 
     except Exception as exc:
         print(f"[ERROR] Exception in task {task_name}: {exc}", file=sys.stderr, flush=True)
-        if steps_taken == 0:
-            log_step(
-                step=1,
-                action="null",
-                reward=0.01,
-                done=True,
-                error=str(exc),
-            )
-            steps_taken = 1
-            rewards.append(0.0)
-            score = 0.0
-            success = False
+        log_step(
+            step=steps_taken + 1,
+            action="null",
+            reward=0.01,
+            done=True,
+            error=str(exc),
+        )
+        steps_taken += 1
+        rewards.append(0.0)
+        score = 0.0
+        success = False
     finally:
         close_session(session_id)
         log_end(success=success, steps=steps_taken, rewards=rewards)
@@ -347,8 +359,8 @@ def main() -> None:
             print(f"[INFO] Running task: {task_name}", flush=True)
             try:
                 success, steps, score, rewards = run_single_task(client, task_name)
-                if not success:
-                    overall_success = False
+                # We do not fail the script execution (overall_success) simply because a task was not successful
+                # (which could just mean the LLM performed poorly). Exiting gracefully is expected.
             except Exception as exc:
                 print(f"[ERROR] Task {task_name} failed with exception: {exc}", file=sys.stderr, flush=True)
                 overall_success = False
