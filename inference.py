@@ -11,7 +11,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-API_KEY = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 
@@ -204,6 +204,18 @@ def close_session(session_id: Optional[str]) -> None:
         return
 
 
+def check_environment_ready() -> None:
+    try:
+        response = requests.get(f"{ENV_BASE_URL}/health", timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(
+            f"[END] task=all success=false steps=0 score=0.00 rewards= error=environment_unreachable:{exc}",
+            flush=True,
+        )
+        raise SystemExit(1)
+
+
 def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, List[float]]:
     """Run inference for a single task and return results."""
     session_id: Optional[str] = None
@@ -268,7 +280,23 @@ def run_single_task(client: OpenAI, task_name: str) -> Tuple[bool, int, float, L
 
 def main() -> None:
     """Run inference for ALL tasks defined in openenv.yaml."""
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    if not API_KEY:
+        print(
+            "[END] task=all success=false steps=0 score=0.00 rewards= error=missing_api_key",
+            flush=True,
+        )
+        raise SystemExit(1)
+
+    try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    except Exception as exc:
+        print(
+            f"[END] task=all success=false steps=0 score=0.00 rewards= error=model_client_init_failed:{exc}",
+            flush=True,
+        )
+        raise SystemExit(1)
+
+    check_environment_ready()
     
     all_results = {}
     overall_success = True
@@ -301,7 +329,7 @@ def main() -> None:
     print(f"{'='*60}\n")
     
     # Exit with non-zero code if any task failed (important for CI/validator)
-    exit(0 if overall_success else 1)
+    raise SystemExit(0 if overall_success else 1)
 
 
 if __name__ == "__main__":
